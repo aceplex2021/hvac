@@ -1,6 +1,10 @@
 # HVAC Service Provider PWA - Project Plan
 
 To start dev server: cd hvac-core; npm run dev
+push and commit to git
+git add .
+git commit -m "Your commit message here"
+git push origin main
 
 ## System Flow
 
