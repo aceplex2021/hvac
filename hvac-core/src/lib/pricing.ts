@@ -1,4 +1,4 @@
-import { ServiceTemplate, PricingRule } from '@/types/services'
+// import { ServiceTemplate, PricingRule } from '@/types/services'
 
 interface PricingContext {
   timeOfDay?: string // e.g., "09:00", "17:30"

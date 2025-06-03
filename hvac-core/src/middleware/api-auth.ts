@@ -3,7 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
-export async function withApiAuth(handler: Function) {
+export function withApiAuth(handler: Function) {
   return async (request: Request) => {
     try {
       const apiKey = request.headers.get('x-api-key');

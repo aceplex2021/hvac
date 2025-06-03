@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+// import { supabase } from './supabase'
 
 export function generateBusinessSlug(name: string): string {
   // Convert to lowercase and replace spaces with hyphens
@@ -17,18 +17,18 @@ export function generateBusinessSlug(name: string): string {
 }
 
 export async function isSlugAvailable(slug: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('businesses')
-    .select('id')
-    .eq('slug', slug)
-    .single()
+  // const { data, error } = await supabase
+  //   .from('businesses')
+  //   .select('id')
+  //   .eq('slug', slug)
+  //   .single()
   
-  if (error) {
-    console.error('Error checking slug availability:', error)
-    return false
-  }
+  // if (error) {
+  //   console.error('Error checking slug availability:', error)
+  //   return false
+  // }
   
-  return !data
+  return false
 }
 
 export async function generateUniqueSlug(name: string): Promise<string> {

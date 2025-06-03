@@ -1,31 +1,74 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 
-export function AuthForm() {
+export function AuthForm({ compact = false, onLoginSuccess }: { compact?: boolean, onLoginSuccess?: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, user } = useAuth()
+  const router = useRouter()
+  const [pendingRedirect, setPendingRedirect] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    console.log('AuthForm: handleSubmit called', { email, password, isSignUp })
 
     try {
       if (isSignUp) {
+        console.log('AuthForm: calling signUp')
         await signUp(email, password)
+        console.log('AuthForm: signUp success')
       } else {
+        console.log('AuthForm: calling signIn')
         await signIn(email, password)
+        console.log('AuthForm: signIn success')
+        setPendingRedirect(true)
       }
     } catch (err) {
+      console.error('AuthForm: error in handleSubmit', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
     }
   }
 
+  useEffect(() => {
+    if (pendingRedirect && user) {
+      const isAdmin = user.app_metadata?.role === 'admin' || user.email === 'admin@4voice.ai'
+      if (onLoginSuccess) onLoginSuccess();
+      if (isAdmin) {
+        router.push('/admin/dashboard')
+      } else {
+        // Fetch business slug for this user and redirect to /[slug]/dashboard
+        (async () => {
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabase = createClient(supabaseUrl, supabaseAnonKey);
+            const { data, error } = await supabase
+              .from('hvac_businesses')
+              .select('slug')
+              .eq('owner_id', user.id)
+              .single();
+            if (error || !data?.slug) {
+              router.push('/dashboard'); // fallback
+            } else {
+              router.push(`/${data.slug}/dashboard`);
+            }
+          } catch (e) {
+            router.push('/dashboard');
+          }
+        })();
+      }
+      setPendingRedirect(false)
+    }
+  }, [pendingRedirect, user, router])
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className={compact ? '' : 'min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'}>
+      <div className={compact ? 'w-full space-y-8 py-2' : 'max-w-md w-full space-y-8'}>
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}

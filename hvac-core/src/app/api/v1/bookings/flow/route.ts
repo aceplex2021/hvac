@@ -3,7 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { withApiAuth } from '@/middleware/api-auth';
 
-export const POST = withApiAuth(async (request: Request) => {
+const handler = async (request: Request) => {
   try {
     const { businessId, step, data } = await request.json();
     
@@ -134,4 +134,6 @@ export const POST = withApiAuth(async (request: Request) => {
       { status: 500 }
     );
   }
-}); 
+};
+
+export const POST = withApiAuth(handler); 

@@ -12,17 +12,31 @@ interface AuthContextType {
   isAuthenticated: boolean
   user: any | null
   loading: boolean
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   loading: true,
+  signIn: async () => {},
+  signUp: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+  }
+
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
+  }
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -45,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       user,
       loading,
+      signIn,
+      signUp,
     }}>
       {children}
     </AuthContext.Provider>

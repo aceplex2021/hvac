@@ -1,10 +1,27 @@
+### To make certain userID as admin sql
+update auth.users
+set raw_app_meta_data = jsonb_set(
+  coalesce(raw_app_meta_data, '{}'),
+  '{role}',
+  '"admin"',
+  true
+)
+where id = 'ca9050bd-e61d-4037-acc6-a67ed580bb54';
+
+### To find out role in supabase
+SELECT id, email, raw_app_meta_data
+FROM auth.users;
+
+### To delete user in supabase
+DELETE FROM auth.users WHERE id = '944521fe-4f20-414d-8718-3634f1b1a722';
+
 # HVAC Service Provider PWA - Project Plan
 
 To start dev server: cd hvac-core; npm run dev
 push and commit to git
-git add .
-git commit -m "Your commit message here"
-git push origin main
+- git add .
+- git commit -m "Your commit message here"
+- git push origin main
 
 ## System Flow
 
@@ -226,12 +243,14 @@ hvac/
   - [ ] Customer Management
   - [ ] Analytics and Reporting
 
-### Phase 4: Integration & Testing (0% Complete)
+### Phase 4: Integration & Testing (25% Complete)
 1. API Integration
-   - [ ] Service endpoints
-   - [ ] Authentication
-   - [ ] Data validation
-   - [ ] Error handling
+   - [] Service endpoints - need to create api route for avail time slot for customers bookings
+   - [] Authentication - need to complete customer auth
+   - [] Data validation
+   - [x] Error handling
+   - [x] Database schema setup (all hvac_* tables created)
+   - [x] Row Level Security (RLS) policies enabled for all tables
 
 2. Testing
    - [ ] Unit testing
@@ -339,7 +358,7 @@ hvac/
 ## Progress Tracking
 - Service Provider Portal: 90% complete
 - Customer Booking Portal: 100% complete
-- Integration & Testing: 0% complete
+- Integration & Testing: 25% complete
 - Deployment & Launch: 0% complete
 - AI Integration: 0% complete
 

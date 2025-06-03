@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server';
 
 // Mock database - will be replaced with actual database
-const mockBusinesses = {
+
+type Business = {
+  id: string;
+  name: string;
+  logo: string;
+  tagline: string;
+  services: { id: number; name: string; price: string; duration: string }[];
+  contact: { phone: string; email: string; address: string; hours: string };
+  reviews: { id: number; rating: number; comment: string; author: string }[];
+};
+
+const mockBusinesses: Record<string, Business> = {
   'acme-hvac': {
     id: 'acme-hvac',
     name: 'ACME HVAC Services',
@@ -27,8 +38,9 @@ const mockBusinesses = {
 
 export async function GET(
   request: Request,
-  { params }: { params: { business: string } }
+  context: { params: Promise<{ business: string }> }
 ) {
+  const params = await context.params;
   const business = mockBusinesses[params.business];
 
   if (!business) {

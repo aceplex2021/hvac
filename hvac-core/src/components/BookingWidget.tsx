@@ -1,14 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Calendar,
-  Clock,
-  User,
-  Phone,
-  Mail,
-  CheckCircle2
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+// import { Calendar, Clock, User, Phone, Mail, CheckCircle2 } from 'lucide-react';
 
 interface Service {
   id: number;

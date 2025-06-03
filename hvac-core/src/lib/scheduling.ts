@@ -1,4 +1,4 @@
-import { ScheduleTemplate, ScheduleRule, TimeSlot, AvailabilityCheck, DayOfWeek } from '@/types/scheduling'
+// import { ScheduleTemplate, ScheduleRule, TimeSlot, AvailabilityCheck, DayOfWeek } from '@/types/scheduling'
 
 export function checkAvailability(
   template: ScheduleTemplate,
@@ -6,7 +6,7 @@ export function checkAvailability(
   requestedTime: string,
   duration: number
 ): AvailabilityCheck {
-  const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+  // const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
   const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
 
   if (!dailySchedule || !dailySchedule.isAvailable) {

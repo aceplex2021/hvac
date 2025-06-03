@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ interface BusinessProfileFormProps {
 }
 
 export function BusinessProfileForm({ className = '', onComplete }: BusinessProfileFormProps) {
-  const router = useRouter()
+  // const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false)
@@ -60,7 +60,7 @@ export function BusinessProfileForm({ className = '', onComplete }: BusinessProf
     }
 
     generateSlug()
-  }, [formData.name])
+  }, [formData.name, formData.slug])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -100,7 +100,7 @@ export function BusinessProfileForm({ className = '', onComplete }: BusinessProf
       if (onComplete) {
         onComplete()
       } else {
-        router.push('/dashboard')
+        // router.push('/dashboard')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create business profile')
