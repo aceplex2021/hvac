@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -14,124 +14,23 @@ import {
   FileText,
   Wrench
 } from 'lucide-react';
-
-// Mock data for demonstration
-const mockRevenueData = {
-  totalRevenue: 25000,
-  monthlyRevenue: 5000,
-  serviceRevenue: 20000,
-  otherRevenue: 5000,
-  revenueTrend: '+15%',
-  recentTransactions: [
-    {
-      id: 1,
-      date: '2024-03-15',
-      type: 'Service',
-      description: 'AC Repair',
-      amount: 299,
-      status: 'Completed'
-    },
-    {
-      id: 2,
-      date: '2024-03-14',
-      type: 'Service',
-      description: 'Maintenance Check',
-      amount: 99,
-      status: 'Completed'
-    }
-  ]
-};
-
-const mockExpenses = [
-  {
-    id: 1,
-    date: '2024-03-15',
-    category: 'Supplies',
-    description: 'AC Parts',
-    amount: 150,
-    status: 'Paid'
-  },
-  {
-    id: 2,
-    date: '2024-03-14',
-    category: 'Equipment',
-    description: 'New Tools',
-    amount: 500,
-    status: 'Pending'
-  }
-];
-
-const mockInvoices = [
-  {
-    id: 1,
-    number: 'INV-2024-001',
-    date: '2024-03-15',
-    customer: 'John Smith',
-    amount: 299,
-    status: 'Paid'
-  },
-  {
-    id: 2,
-    number: 'INV-2024-002',
-    date: '2024-03-14',
-    customer: 'Sarah Johnson',
-    amount: 99,
-    status: 'Pending'
-  }
-];
-
-const mockPayments = [
-  {
-    id: 1,
-    date: '2024-03-15',
-    method: 'Credit Card',
-    amount: 299,
-    status: 'Completed',
-    reference: 'TRX-12345'
-  },
-  {
-    id: 2,
-    date: '2024-03-14',
-    method: 'Bank Transfer',
-    amount: 99,
-    status: 'Processing',
-    reference: 'TRX-12346'
-  }
-];
-
-const mockExpenseCategories = [
-  'Supplies', 'Equipment', 'Travel', 'Utilities', 'Other'
-];
-const mockExpenseStatuses = [
-  'Paid', 'Pending', 'Overdue'
-];
-const mockInvoiceCustomers = [
-  'John Smith', 'Sarah Johnson', 'Mike Brown', 'Lisa Davis'
-];
-// const mockInvoiceStatuses = [
-//   'Paid', 'Pending', 'Overdue'
-// ];
-
-const mockInvoiceParts = [
-  { id: 1, name: 'AC Filter', price: 25 },
-  { id: 2, name: 'Thermostat', price: 60 },
-  { id: 3, name: 'Compressor', price: 350 },
-];
-
-const mockInvoiceServices = [
-  { id: 1, name: 'AC Installation', price: 200 },
-  { id: 2, name: 'AC Repair', price: 150 },
-  { id: 3, name: 'Maintenance Check', price: 99 },
-];
+import { createBrowserClient } from '@supabase/ssr';
+import { useParams } from 'next/navigation';
 
 const TABS = [
   { id: 'revenue', name: 'Revenue', icon: TrendingUp },
   { id: 'expenses', name: 'Expenses', icon: Receipt },
   { id: 'invoices', name: 'Invoices', icon: FileText },
-  { id: 'payments', name: 'Payments', icon: CreditCard }
+  // { id: 'payments', name: 'Payments', icon: CreditCard }, // Payments tab hidden for now
 ];
 
 export default function FinancialsPage() {
+  const params = useParams();
+  const slug = params.slug;
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [activeTab, setActiveTab] = useState('revenue');
   const [searchQuery, setSearchQuery] = useState('');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -152,24 +51,270 @@ export default function FinancialsPage() {
     miscDesc: '',
     tax: 8.25,
   });
+  // State for DB data
+  const [revenueData, setRevenueData] = useState<any>(null);
+  const [revenueLoading, setRevenueLoading] = useState(true);
+  const [revenueError, setRevenueError] = useState<string | null>(null);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(true);
+  const [expensesError, setExpensesError] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [invoicesError, setInvoicesError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [parts, setParts] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  // Expense categories/statuses (use enums/constants if not in DB)
+  const EXPENSE_CATEGORIES = ['Supplies', 'Equipment', 'Travel', 'Utilities', 'Other'];
+  const EXPENSE_STATUSES = ['Paid', 'Pending', 'Overdue'];
 
-  const handleExpenseChange = (e) => {
+  // Fetch businessId from slug
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  // Add state for parts revenue
+  const [partsRevenue, setPartsRevenue] = useState(0);
+
+  // Move fetchExpenses to top-level so it can be reused
+  const fetchExpenses = useCallback(async () => {
+    if (!businessId) return;
+    setExpensesLoading(true);
+    setExpensesError(null);
+    try {
+      const { data, error } = await supabase
+        .from('hvac_expenses')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('date', { ascending: false });
+      if (error) throw error;
+      setExpenses(data || []);
+    } catch (err: any) {
+      setExpensesError(err.message || 'Failed to fetch expenses.');
+    } finally {
+      setExpensesLoading(false);
+    }
+  }, [businessId, supabase]);
+
+  useEffect(() => {
+    async function fetchBusinessId() {
+      if (!slug) return;
+      const { data: business } = await supabase
+        .from('hvac_businesses')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      setBusinessId(business?.id || null);
+    }
+    fetchBusinessId();
+  }, [slug, supabase]);
+
+  // Fetch all financial data when businessId is available
+  useEffect(() => {
+    if (!businessId) return;
+    // Revenue (aggregate from invoices/payments)
+    async function fetchRevenue() {
+      setRevenueLoading(true);
+      setRevenueError(null);
+      try {
+        // Total revenue: sum of paid invoices
+        const { data: invoices, error: invError } = await supabase
+          .from('hvac_invoices')
+          .select('*')
+          .eq('business_id', businessId);
+        if (invError) throw invError;
+        const paidInvoices = (invoices || []).filter((inv) => inv.status?.toLowerCase() === 'paid');
+        const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+        // Monthly revenue: sum of paid invoices in current month
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        const monthlyRevenue = paidInvoices.filter((inv) => {
+          const d = new Date(inv.issue_date);
+          return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        }).reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+        // Service revenue: sum of paid invoices for service jobs
+        // (Assume service_id is not null for service jobs)
+        const serviceRevenue = paidInvoices.filter((inv) => inv.service_id).reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+        // Other revenue: paid invoices without service_id
+        const otherRevenue = paidInvoices.filter((inv) => !inv.service_id).reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+        // Revenue trend: compare this month to last month
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthRevenue = paidInvoices.filter((inv) => {
+          const d = new Date(inv.issue_date);
+          return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
+        }).reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+        const revenueTrend = lastMonthRevenue > 0 ? `+${Math.round(((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)}%` : '+0%';
+        // Recent transactions: last 5 paid invoices
+        const recentTransactions = paidInvoices.slice(-5).reverse().map((inv, i) => {
+          let type = 'Other';
+          let description = 'Other';
+          if (inv.work_order_id) {
+            const wo = workOrders.find(w => w.id === inv.work_order_id);
+            if (wo) {
+              type = wo.type || 'Other';
+              description = wo.description || 'Other';
+            }
+          } else if (inv.service_id) {
+            const service = services.find(s => s.id === inv.service_id);
+            if (service) {
+              type = service.name;
+              description = service.name;
+            }
+          }
+          return {
+            id: inv.id || i,
+            date: inv.issue_date ? new Date(inv.issue_date).toLocaleDateString() : '',
+            type,
+            description,
+            amount: inv.total_amount,
+            status: inv.status,
+          };
+        });
+        setRevenueData({ totalRevenue, monthlyRevenue, serviceRevenue, otherRevenue, revenueTrend, recentTransactions });
+      } catch (err: any) {
+        setRevenueError(err.message || 'Failed to fetch revenue data.');
+      } finally {
+        setRevenueLoading(false);
+      }
+    }
+    // Expenses
+    fetchExpenses();
+    // Invoices
+    async function fetchInvoices() {
+      setInvoicesLoading(true);
+      setInvoicesError(null);
+      try {
+        const { data, error } = await supabase
+          .from('hvac_invoices')
+          .select('*')
+          .eq('business_id', businessId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setInvoices(data || []);
+      } catch (err: any) {
+        setInvoicesError(err.message || 'Failed to fetch invoices.');
+      } finally {
+        setInvoicesLoading(false);
+      }
+    }
+    // Customers (for invoice dropdown)
+    async function fetchCustomers() {
+      const { data } = await supabase
+        .from('hvac_clients')
+        .select('id, name')
+        .eq('business_id', businessId);
+      setCustomers(data || []);
+    }
+    // Services (for invoice dropdown)
+    async function fetchServices() {
+      const { data } = await supabase
+        .from('hvac_services')
+        .select('id, name, base_price')
+        .eq('business_id', businessId);
+      setServices(data || []);
+    }
+    // Parts (for invoice dropdown)
+    async function fetchParts() {
+      const { data } = await supabase
+        .from('hvac_inventory_items')
+        .select('id, name, price')
+        .eq('business_id', businessId);
+      setParts(data || []);
+    }
+    // Add parts revenue calculation
+    async function fetchPartsRevenue() {
+      try {
+        // 1. Get all inventory item names (part names)
+        const { data: inventoryItems } = await supabase
+          .from('hvac_inventory_items')
+          .select('name')
+          .eq('business_id', businessId);
+        const partNames = (inventoryItems || []).map(item => item.name);
+        if (partNames.length === 0) {
+          setPartsRevenue(0);
+          return;
+        }
+        // 2. Get all paid invoice IDs
+        const { data: paidInvoices } = await supabase
+          .from('hvac_invoices')
+          .select('id')
+          .eq('business_id', businessId)
+          .in('status', ['paid', 'Paid']);
+        const paidInvoiceIds = (paidInvoices || []).map(inv => inv.id);
+        if (paidInvoiceIds.length === 0) {
+          setPartsRevenue(0);
+          return;
+        }
+        // 3. Get all invoice items for those invoices
+        const { data: invoiceItems } = await supabase
+          .from('hvac_invoice_items')
+          .select('description, amount, invoice_id')
+          .in('invoice_id', paidInvoiceIds);
+        // 4. Sum amount for items whose description matches a part name
+        const partsRevenue = (invoiceItems || [])
+          .filter(item => partNames.includes(item.description))
+          .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        setPartsRevenue(partsRevenue);
+      } catch (err) {
+        setPartsRevenue(0);
+      }
+    }
+    // Work orders
+    async function fetchWorkOrders() {
+      const { data } = await supabase
+        .from('hvac_work_orders')
+        .select('id, type, description')
+        .eq('business_id', businessId);
+      setWorkOrders(data || []);
+    }
+    fetchRevenue();
+    fetchInvoices();
+    fetchCustomers();
+    fetchServices();
+    fetchParts();
+    fetchPartsRevenue();
+    fetchWorkOrders();
+  }, [businessId, fetchExpenses, services, supabase, workOrders]);
+
+  const handleExpenseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setExpenseForm({ ...expenseForm, [e.target.name]: e.target.value });
   };
-  const handleInvoiceChange = (e) => {
+  const handleInvoiceChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setInvoiceForm({ ...invoiceForm, [e.target.name]: e.target.value });
   };
-  const handleExpenseSubmit = (e) => {
+  const handleExpenseSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setShowExpenseModal(false);
-    setExpenseForm({ date: '', category: '', description: '', amount: '', status: '' });
+    if (!businessId) return;
+    setExpensesLoading(true);
+    try {
+      const { error } = await supabase
+        .from('hvac_expenses')
+        .insert([
+          {
+            business_id: businessId,
+            date: expenseForm.date,
+            category: expenseForm.category,
+            description: expenseForm.description,
+            amount: parseFloat(expenseForm.amount),
+            status: expenseForm.status,
+          },
+        ]);
+      if (error) throw error;
+      setShowExpenseModal(false);
+      setExpenseForm({ date: '', category: '', description: '', amount: '', status: '' });
+      // Refetch expenses to update the list
+      await fetchExpenses();
+    } catch (err) {
+      setExpensesError((err as Error).message || 'Failed to add expense.');
+    } finally {
+      setExpensesLoading(false);
+    }
   };
   const getServicePrice = () => {
-    const service = mockInvoiceServices.find((s) => s.id.toString() === invoiceForm.service);
-    return service ? service.price : 0;
+    const service = services.find((s) => s.id.toString() === invoiceForm.service);
+    return service ? service.base_price : 0;
   };
   const getPartPrice = () => {
-    const part = mockInvoiceParts.find((p) => p.id.toString() === invoiceForm.part);
+    const part = parts.find((p) => p.id.toString() === invoiceForm.part);
     return part ? part.price : 0;
   };
   const getSubtotal = () => {
@@ -180,13 +325,13 @@ export default function FinancialsPage() {
   };
   const getTaxAmount = () => {
     const subtotal = getSubtotal();
-    const taxRate = parseFloat(invoiceForm.tax) || 0;
+    const taxRate = invoiceForm.tax || 0;
     return subtotal * (taxRate / 100);
   };
   const getTotal = () => {
     return (getSubtotal() + getTaxAmount()).toFixed(2);
   };
-  const handleInvoiceSubmit = (e) => {
+  const handleInvoiceSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setShowInvoiceModal(false);
     setInvoiceForm({ date: '', customer: '', service: '', part: '', misc: '', miscDesc: '', tax: 8.25 });
@@ -205,11 +350,11 @@ export default function FinancialsPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
                   <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">${mockRevenueData.totalRevenue}</div>
+                    <div className="text-2xl font-semibold text-gray-900">${revenueData?.totalRevenue}</div>
                     <div className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
                       <TrendingUp className="self-center flex-shrink-0 h-5 w-5 text-green-500" />
                       <span className="sr-only">Increased by</span>
-                      {mockRevenueData.revenueTrend}
+                      {revenueData?.revenueTrend}
                     </div>
                   </dd>
                 </dl>
@@ -227,7 +372,7 @@ export default function FinancialsPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Monthly Revenue</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">${mockRevenueData.monthlyRevenue}</dd>
+                  <dd className="text-2xl font-semibold text-gray-900">${revenueData?.monthlyRevenue}</dd>
                 </dl>
               </div>
             </div>
@@ -243,7 +388,7 @@ export default function FinancialsPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Service Revenue</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">${mockRevenueData.serviceRevenue}</dd>
+                  <dd className="text-2xl font-semibold text-gray-900">${revenueData?.serviceRevenue}</dd>
                 </dl>
               </div>
             </div>
@@ -259,7 +404,23 @@ export default function FinancialsPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Other Revenue</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">${mockRevenueData.otherRevenue}</dd>
+                  <dd className="text-2xl font-semibold text-gray-900">${revenueData?.otherRevenue}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Wrench className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Parts Revenue</dt>
+                  <dd className="text-2xl font-semibold text-gray-900">${partsRevenue}</dd>
                 </dl>
               </div>
             </div>
@@ -271,7 +432,7 @@ export default function FinancialsPage() {
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Transactions</h3>
           <div className="space-y-4">
-            {mockRevenueData.recentTransactions.map((transaction) => (
+            {revenueData?.recentTransactions.map((transaction: { id: string; description: string; type: string; amount: number; status: string; date: string }) => (
               <div key={transaction.id} className="border-b border-gray-200 pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -329,7 +490,7 @@ export default function FinancialsPage() {
                 <label className="block text-sm font-medium text-black">Category</label>
                 <select name="category" value={expenseForm.category} onChange={handleExpenseChange} required className="mt-1 block w-full rounded-md border-black shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black">
                   <option value="">Select category</option>
-                  {mockExpenseCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                  {EXPENSE_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
               <div>
@@ -344,7 +505,7 @@ export default function FinancialsPage() {
                 <label className="block text-sm font-medium text-black">Status</label>
                 <select name="status" value={expenseForm.status} onChange={handleExpenseChange} required className="mt-1 block w-full rounded-md border-black shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black">
                   <option value="">Select status</option>
-                  {mockExpenseStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {EXPENSE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="flex justify-end">
@@ -369,7 +530,7 @@ export default function FinancialsPage() {
       </div>
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {mockExpenses.map((expense) => (
+          {expenses.map((expense) => (
             <li key={expense.id}>
               <div className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -428,21 +589,21 @@ export default function FinancialsPage() {
                 <label className="block text-sm font-medium text-black">Customer</label>
                 <select name="customer" value={invoiceForm.customer} onChange={handleInvoiceChange} required className="mt-1 block w-full rounded-md border-black shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black">
                   <option value="">Select customer</option>
-                  {mockInvoiceCustomers.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {customers.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-black">Services</label>
                 <select name="service" value={invoiceForm.service} onChange={handleInvoiceChange} required className="mt-1 block w-full rounded-md border-black shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black">
                   <option value="">Select service</option>
-                  {mockInvoiceServices.map((s) => <option key={s.id} value={s.id}>{s.name} (+${s.price})</option>)}
+                  {services.map((s) => <option key={s.id} value={s.id}>{s.name} (+${s.base_price})</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-black">Parts</label>
                 <select name="part" value={invoiceForm.part} onChange={handleInvoiceChange} className="mt-1 block w-full rounded-md border-black shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black">
                   <option value="">Select part</option>
-                  {mockInvoiceParts.map((p) => <option key={p.id} value={p.id}>{p.name} (+${p.price})</option>)}
+                  {parts.map((p) => <option key={p.id} value={p.id}>{p.name} (+${p.price})</option>)}
                 </select>
               </div>
               <div>
@@ -476,7 +637,7 @@ export default function FinancialsPage() {
       </div>
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {mockInvoices.map((invoice) => (
+          {invoices.map((invoice) => (
             <li key={invoice.id}>
               <div className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -485,12 +646,12 @@ export default function FinancialsPage() {
                       <FileText className="h-8 w-8 text-gray-400" />
                     </div>
                     <div className="ml-4">
-                      <h3 className="text-lg font-medium text-black">{invoice.number}</h3>
-                      <p className="text-sm text-black">{invoice.customer}</p>
+                      <h3 className="text-lg font-medium text-black">{invoice.number || invoice.id}</h3>
+                      <p className="text-sm text-black">{customers.find(c => c.id === invoice.client_id)?.name || 'Unknown'}</p>
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-sm font-medium text-black">${invoice.amount}</span>
+                    <span className="text-sm font-medium text-black">${invoice.total_amount}</span>
                     <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       invoice.status === 'Paid' 
                         ? 'bg-green-100 text-green-800'
@@ -502,7 +663,7 @@ export default function FinancialsPage() {
                 </div>
                 <div className="mt-2 text-sm text-black">
                   <Calendar className="inline-block h-4 w-4 mr-1" />
-                  {invoice.date}
+                  {invoice.issue_date ? new Date(invoice.issue_date).toLocaleDateString() : ''}
                 </div>
               </div>
             </li>
@@ -512,72 +673,8 @@ export default function FinancialsPage() {
     </div>
   );
 
-  const renderPayments = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-gray-900">Payments</h2>
-        <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-          <Plus className="h-4 w-4 mr-2" />
-          Record Payment
-        </button>
-      </div>
-
-      <div className="flex space-x-4">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-            placeholder="Search payments..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </button>
-      </div>
-
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
-          {mockPayments.map((payment) => (
-            <li key={payment.id}>
-              <div className="px-4 py-4 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <CreditCard className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900">{payment.reference}</h3>
-                      <p className="text-sm text-gray-500">{payment.method}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-900">${payment.amount}</span>
-                    <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      payment.status === 'Completed' 
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {payment.status}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-gray-500">
-                  <Calendar className="inline-block h-4 w-4 mr-1" />
-                  {payment.date}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
+  // Comment out renderPayments and its usage
+  // const renderPayments = () => ( ... )
 
   return (
     <div className="py-6">
@@ -609,7 +706,7 @@ export default function FinancialsPage() {
           {activeTab === 'revenue' && renderRevenueDashboard()}
           {activeTab === 'expenses' && renderExpenses()}
           {activeTab === 'invoices' && renderInvoices()}
-          {activeTab === 'payments' && renderPayments()}
+          {/* {activeTab === 'payments' && renderPayments()} */}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// import { ScheduleTemplate, ScheduleRule, TimeSlot, AvailabilityCheck, DayOfWeek } from '@/types/scheduling'
+import type { ScheduleTemplate, ScheduleRule, TimeSlot, AvailabilityCheck, DayOfWeek } from '@/types/scheduling'
 
 export function checkAvailability(
   template: ScheduleTemplate,
@@ -7,6 +7,7 @@ export function checkAvailability(
   duration: number
 ): AvailabilityCheck {
   // const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+  const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
 
   if (!dailySchedule || !dailySchedule.isAvailable) {
@@ -82,7 +83,7 @@ function checkRule(
       }
       break
     case 'dayOfWeek':
-      const day = requestedDate.toLocaleDateString('en-US', { weekday: 'lowercase' })
+      const day = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
       if (day === rule.value.toLowerCase()) {
         return {
           isAvailable: rule.action !== 'block',
@@ -124,7 +125,7 @@ function findNextAvailableSlot(template: ScheduleTemplate, fromDate: Date): Date
 
   while (attempts < maxAttempts) {
     currentDate.setDate(currentDate.getDate() + 1)
-    const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+    const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as DayOfWeek
     const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
 
     if (dailySchedule && dailySchedule.isAvailable && dailySchedule.timeSlots.length > 0) {

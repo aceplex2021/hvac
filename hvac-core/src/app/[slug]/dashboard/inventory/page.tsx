@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 // import { Package, BarChart2, History, Filter } from 'lucide-react';
 import { 
   Plus,
@@ -10,49 +12,6 @@ import {
   Search,
   Download
 } from 'lucide-react';
-
-// Mock data for demonstration
-const mockInventory = [
-  {
-    id: 1,
-    name: 'AC Compressor',
-    sku: 'AC-COMP-001',
-    category: 'Major Components',
-    quantity: 5,
-    reorderPoint: 3,
-    unitPrice: 299.99,
-    location: 'Warehouse A',
-    lastRestocked: '2024-02-15',
-    supplier: 'HVAC Parts Co.',
-    status: 'In Stock'
-  },
-  {
-    id: 2,
-    name: 'Thermostat',
-    sku: 'TH-001',
-    category: 'Controls',
-    quantity: 12,
-    reorderPoint: 5,
-    unitPrice: 89.99,
-    location: 'Warehouse B',
-    lastRestocked: '2024-02-10',
-    supplier: 'Control Systems Inc.',
-    status: 'In Stock'
-  },
-  {
-    id: 3,
-    name: 'Refrigerant R-410A',
-    sku: 'REF-410A-25',
-    category: 'Refrigerants',
-    quantity: 2,
-    reorderPoint: 5,
-    unitPrice: 149.99,
-    location: 'Warehouse A',
-    lastRestocked: '2024-02-05',
-    supplier: 'Cooling Solutions',
-    status: 'Low Stock'
-  }
-];
 
 const CATEGORIES = [
   'Major Components',
@@ -72,28 +31,154 @@ const SUPPLIERS = [
 ];
 
 export default function InventoryPage() {
+  const params = useParams();
+  const slug = params.slug;
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [formState, setFormState] = useState({
+    name: '',
+    sku: '',
+    category_name: '',
+    quantity: '',
+    min_quantity: '',
+    location: '',
+    cost: '',
+    price: '',
+    unit: ''
+  });
+  const [businessId, setBusinessId] = useState(null);
+  const [categories, setCategories] = useState<{id: any, name: any}[]>([]);
+
+  useEffect(() => {
+    async function fetchInventoryAndCategories() {
+      setLoading(true);
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      // Get business_id from slug
+      const { data: business, error: bizError } = await supabase
+        .from('hvac_businesses')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (bizError || !business) {
+        setInventory([]);
+        setBusinessId(null);
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
+      setBusinessId(business.id);
+      // Fetch inventory items for this business
+      const { data: items } = await supabase
+        .from('hvac_inventory_items')
+        .select('*')
+        .eq('business_id', business.id);
+      setInventory(items || []);
+      // Fetch categories for this business
+      const { data: cats } = await supabase
+        .from('hvac_inventory_categories')
+        .select('id, name')
+        .eq('business_id', business.id);
+      setCategories(cats || []);
+      setLoading(false);
+    }
+    if (slug) fetchInventoryAndCategories();
+  }, [slug]);
 
   const handleAddItem = () => {
     setIsAddingItem(true);
     setSelectedItem(null);
+    setFormState({
+      name: '',
+      sku: '',
+      category_name: '',
+      quantity: '',
+      min_quantity: '',
+      location: '',
+      cost: '',
+      price: '',
+      unit: ''
+    });
   };
 
-  const handleEditItem = (item) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setFormState((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSaveItem = async () => {
+    if (!businessId) return;
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { name, sku, category_name, quantity, min_quantity, location, cost, price, unit } = formState;
+    // 1. Check if category exists (case-insensitive)
+    let category = categories.find(
+      (cat) => cat.name.toLowerCase() === category_name.trim().toLowerCase()
+    );
+    let category_id = category ? category.id : null;
+    // 2. If not, insert new category and get its ID
+    if (!category_id) {
+      const { data: newCat, error: catError } = await supabase
+        .from('hvac_inventory_categories')
+        .insert([{ business_id: businessId, name: category_name.trim() }])
+        .select('id')
+        .single();
+      if (catError) {
+        alert('Failed to add category: ' + catError.message);
+        return;
+      }
+      category_id = newCat.id;
+      setCategories((prev) => [...prev, { id: newCat.id, name: category_name.trim() }]);
+    }
+    // 3. Insert the inventory item
+    const { error } = await supabase.from('hvac_inventory_items').insert([
+      {
+        business_id: businessId,
+        category_id,
+        name,
+        sku,
+        quantity: quantity === '' ? null : Number(quantity),
+        min_quantity: min_quantity === '' ? null : Number(min_quantity),
+        location,
+        cost: cost === '' ? null : Number(cost),
+        price: price === '' ? null : Number(price),
+        unit: unit || null
+      }
+    ]);
+    if (!error) {
+      setIsAddingItem(false);
+      setIsEditing(false);
+      // Refresh inventory
+      const { data: items } = await supabase
+        .from('hvac_inventory_items')
+        .select('*')
+        .eq('business_id', businessId);
+      setInventory(items || []);
+    } else {
+      alert('Failed to add item: ' + error.message);
+    }
+  };
+
+  const handleEditItem = (item: any) => {
     setIsEditing(true);
     setSelectedItem(item);
   };
 
-  const handleDeleteItem = (itemId) => {
+  const handleDeleteItem = (itemId: any) => {
     // Implement delete functionality
     console.log('Delete item:', itemId);
   };
 
-  const renderInventoryCard = (item) => (
+  const renderInventoryCard = (item: any) => (
     <div key={item.id} className="bg-white shadow rounded-lg p-6">
       <div className="flex justify-between items-start">
         <div>
@@ -119,14 +204,14 @@ export default function InventoryPage() {
       <div className="mt-4 space-y-2">
         <div className="flex justify-between">
           <span className="text-sm text-gray-500">Category:</span>
-          <span className="text-sm font-medium">{item.category}</span>
+          <span className="text-sm font-medium">{item.category_id || 'N/A'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-sm text-gray-500">Quantity:</span>
           <span className={`text-sm font-medium ${
-            item.quantity <= item.reorderPoint ? 'text-red-600' : 'text-green-600'
+            item.quantity <= (item.min_quantity || 0) ? 'text-red-600' : 'text-green-600'
           }`}>
-            {item.quantity} {item.quantity <= item.reorderPoint && <AlertTriangle className="inline h-4 w-4 ml-1" />}
+            {item.quantity} {item.quantity <= (item.min_quantity || 0) && <AlertTriangle className="inline h-4 w-4 ml-1" />}
           </span>
         </div>
         <div className="flex justify-between">
@@ -134,19 +219,19 @@ export default function InventoryPage() {
           <span className="text-sm font-medium">{item.location}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-sm text-gray-500">Unit Price:</span>
-          <span className="text-sm font-medium">${item.unitPrice.toFixed(2)}</span>
+          <span className="text-sm text-gray-500">Cost:</span>
+          <span className="text-sm font-medium">${item.cost?.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-500">Price:</span>
+          <span className="text-sm font-medium">${item.price?.toFixed(2)}</span>
         </div>
       </div>
 
       <div className="mt-4 pt-4 border-t border-gray-200">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500">Last Restocked:</span>
-          <span className="text-sm font-medium">{item.lastRestocked}</span>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-sm text-gray-500">Supplier:</span>
-          <span className="text-sm font-medium">{item.supplier}</span>
+          <span className="text-sm text-gray-500">Min Quantity:</span>
+          <span className="text-sm font-medium">{item.min_quantity}</span>
         </div>
       </div>
     </div>
@@ -167,7 +252,8 @@ export default function InventoryPage() {
             type="text"
             id="name"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.name || ''}
+            value={formState.name}
+            onChange={handleFormChange}
           />
         </div>
 
@@ -179,26 +265,29 @@ export default function InventoryPage() {
             type="text"
             id="sku"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.sku || ''}
+            value={formState.sku}
+            onChange={handleFormChange}
           />
         </div>
 
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="category_name" className="block text-sm font-medium text-gray-700">
             Category
           </label>
-          <select
-            id="category"
+          <input
+            type="text"
+            id="category_name"
+            list="category-suggestions"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.category || ''}
-          >
-            <option value="">Select a category</option>
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
+            value={formState.category_name}
+            onChange={handleFormChange}
+            autoComplete="off"
+          />
+          <datalist id="category-suggestions">
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.name} />
             ))}
-          </select>
+          </datalist>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -210,34 +299,23 @@ export default function InventoryPage() {
               type="number"
               id="quantity"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              defaultValue={selectedItem?.quantity || 0}
+              value={formState.quantity}
+              onChange={handleFormChange}
             />
           </div>
 
           <div>
-            <label htmlFor="reorderPoint" className="block text-sm font-medium text-gray-700">
-              Reorder Point
+            <label htmlFor="min_quantity" className="block text-sm font-medium text-gray-700">
+              Min Quantity
             </label>
             <input
               type="number"
-              id="reorderPoint"
+              id="min_quantity"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              defaultValue={selectedItem?.reorderPoint || 0}
+              value={formState.min_quantity}
+              onChange={handleFormChange}
             />
           </div>
-        </div>
-
-        <div>
-          <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
-            Unit Price
-          </label>
-          <input
-            type="number"
-            id="unitPrice"
-            step="0.01"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.unitPrice || 0}
-          />
         </div>
 
         <div>
@@ -248,26 +326,64 @@ export default function InventoryPage() {
             type="text"
             id="location"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.location || ''}
+            value={formState.location}
+            onChange={handleFormChange}
           />
         </div>
 
         <div>
-          <label htmlFor="supplier" className="block text-sm font-medium text-gray-700">
-            Supplier
+          <label htmlFor="cost" className="block text-sm font-medium text-gray-700">
+            Cost
           </label>
-          <select
-            id="supplier"
+          <input
+            type="number"
+            id="cost"
+            step="0.01"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            defaultValue={selectedItem?.supplier || ''}
-          >
-            <option value="">Select a supplier</option>
-            {SUPPLIERS.map((supplier) => (
-              <option key={supplier} value={supplier}>
-                {supplier}
-              </option>
-            ))}
-          </select>
+            value={formState.cost}
+            onChange={handleFormChange}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+            Price
+          </label>
+          <input
+            type="number"
+            id="price"
+            step="0.01"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            value={formState.price}
+            onChange={handleFormChange}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
+            Unit
+          </label>
+          <input
+            type="text"
+            id="unit"
+            list="unit-suggestions"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            value={formState.unit}
+            onChange={handleFormChange}
+            autoComplete="off"
+            required
+          />
+          <datalist id="unit-suggestions">
+            <option value="piece" />
+            <option value="box" />
+            <option value="roll" />
+            <option value="canister" />
+            <option value="gallon" />
+            <option value="liter" />
+            <option value="meter" />
+            <option value="bag" />
+            <option value="bottle" />
+          </datalist>
         </div>
 
         <div className="flex justify-end space-x-3">
@@ -283,6 +399,7 @@ export default function InventoryPage() {
           </button>
           <button
             type="button"
+            onClick={handleSaveItem}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             {isEditing ? 'Save Changes' : 'Add Item'}
@@ -345,7 +462,16 @@ export default function InventoryPage() {
           renderAddEditForm()
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {mockInventory.map(renderInventoryCard)}
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              inventory
+                .filter(item =>
+                  (!searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                  (!selectedCategory || item.category_id === selectedCategory)
+                )
+                .map(renderInventoryCard)
+            )}
           </div>
         )}
       </div>

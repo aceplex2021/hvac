@@ -18,8 +18,7 @@ export function ServiceTypeManager({ initialServiceTypes }: ServiceTypeManagerPr
 
   const handleCreate = async (data: Partial<ServiceType>) => {
     try {
-      const newServiceType = await createServiceType(data as Omit<ServiceType, 'id' | 'createdAt' | 'updatedAt'>)
-      setServiceTypes(prev => [newServiceType, ...prev])
+      await createServiceType(data as Omit<ServiceType, 'id' | 'createdAt' | 'updatedAt'>)
       setIsFormOpen(false)
     } catch (error) {
       console.error('Failed to create service type:', error)
@@ -31,8 +30,7 @@ export function ServiceTypeManager({ initialServiceTypes }: ServiceTypeManagerPr
     if (!editingServiceType) return
 
     try {
-      const updatedServiceType = await updateServiceType(editingServiceType.id, data)
-      setServiceTypes(prev => prev.map(st => st.id === updatedServiceType.id ? updatedServiceType : st))
+      await updateServiceType(editingServiceType.id, data)
       setIsFormOpen(false)
       setEditingServiceType(null)
     } catch (error) {
@@ -53,8 +51,8 @@ export function ServiceTypeManager({ initialServiceTypes }: ServiceTypeManagerPr
 
   const handleToggleActive = async (serviceType: ServiceType) => {
     try {
-      const updatedServiceType = await toggleServiceTypeActive(serviceType.id, !serviceType.isActive)
-      setServiceTypes(prev => prev.map(st => st.id === updatedServiceType.id ? updatedServiceType : st))
+      await toggleServiceTypeActive(serviceType.id, !serviceType.isActive)
+      // No state update since the function returns void
     } catch (error) {
       console.error('Failed to toggle service type active status:', error)
       // TODO: Add error handling UI

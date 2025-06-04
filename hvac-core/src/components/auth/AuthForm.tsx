@@ -43,8 +43,8 @@ export function AuthForm({ compact = false, onLoginSuccess }: { compact?: boolea
         // Fetch business slug for this user and redirect to /[slug]/dashboard
         (async () => {
           try {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
             const { createClient } = await import('@supabase/supabase-js');
             const supabase = createClient(supabaseUrl, supabaseAnonKey);
             const { data, error } = await supabase
@@ -64,7 +64,7 @@ export function AuthForm({ compact = false, onLoginSuccess }: { compact?: boolea
       }
       setPendingRedirect(false)
     }
-  }, [pendingRedirect, user, router])
+  }, [pendingRedirect, user, router, onLoginSuccess])
 
   return (
     <div className={compact ? '' : 'min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'}>

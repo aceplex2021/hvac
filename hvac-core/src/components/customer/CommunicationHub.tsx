@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserClient } from '@supabase/ssr';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { MessageSquare, Send, User } from 'lucide-react';
 
 interface Message {
@@ -24,11 +24,7 @@ export function CommunicationHub() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
@@ -47,7 +43,11 @@ export function CommunicationHub() {
     }
 
     setMessages(data || []);
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ServiceTemplate, PricingRule, SchedulingRule, MaterialRequirement, ChecklistItem } from '@/types/services'
 import { createServiceTemplate, updateServiceTemplate, deleteServiceTemplate } from '@/lib/services'
+import { ServiceTemplateForm } from './ServiceTemplateForm'
+import { ServiceTemplateCard } from './ServiceTemplateCard'
 
 interface ServiceTemplateManagerProps {
   businessId: string

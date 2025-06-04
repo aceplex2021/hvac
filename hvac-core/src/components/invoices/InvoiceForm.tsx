@@ -30,7 +30,7 @@ export function InvoiceForm({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  const [formData, setFormData] = useState<Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>>({
+  const [formData, setFormData] = useState<Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> & { items: InvoiceItem[] }>({
     businessId,
     customerId,
     serviceRequestId,
@@ -58,18 +58,22 @@ export function InvoiceForm({
     }))
   }
 
-  const handleUpdateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+  const handleUpdateItem = (
+    index: number,
+    field: 'description' | 'quantity' | 'unitPrice' | 'taxRate' | 'total',
+    value: string | number | undefined
+  ) => {
     setFormData(prev => {
       const newItems = [...prev.items]
       const item = { ...newItems[index] }
       
       if (field === 'quantity' || field === 'unitPrice') {
-        const quantity = field === 'quantity' ? value : item.quantity
-        const unitPrice = field === 'unitPrice' ? value : item.unitPrice
+        const quantity = field === 'quantity' ? Number(value) : Number(item.quantity)
+        const unitPrice = field === 'unitPrice' ? Number(value) : Number(item.unitPrice)
         item.total = quantity * unitPrice
       }
       
-      item[field] = value
+      item[field] = value as never
       newItems[index] = item
       
       const { subtotal, tax, total } = calculateInvoiceTotals(newItems, 0)

@@ -5,19 +5,24 @@ import { ServiceTemplate } from '@/types/services'
 import { checkAvailability } from '@/lib/scheduling'
 
 interface SchedulingPreviewProps {
-  template: ServiceTemplate
+  template: any // Accept both ServiceTemplate and ScheduleTemplate for preview
 }
 
 export function SchedulingPreview({ template }: SchedulingPreviewProps) {
   const [context, setContext] = useState({
     timeOfDay: '09:00',
-    dayOfWeek: new Date().toLocaleDateString('en-US', { weekday: 'lowercase' }),
+    dayOfWeek: new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(),
     isHoliday: false,
     leadTime: 24,
     requestedDate: new Date()
   })
 
-  const result = checkAvailability(template, context)
+  const result = checkAvailability(
+    template,
+    context.requestedDate,
+    context.timeOfDay,
+    60 // default duration in minutes
+  )
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -34,7 +39,7 @@ export function SchedulingPreview({ template }: SchedulingPreviewProps) {
               setContext(prev => ({
                 ...prev,
                 requestedDate: date,
-                dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'lowercase' })
+                dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
               }))
             }}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"

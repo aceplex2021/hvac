@@ -3,12 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRealtime } from '@/contexts/RealtimeContext'
 import { ServiceRequest } from '@/types/service-request'
-import { Technician } from '@/types/technician'
 
 interface LiveStatusProps {
   serviceRequestId?: string
   technicianId?: string
 }
+
+// Technician type is not defined globally, so define it locally for this file
+type Technician = {
+  id: string;
+  location: string;
+  status: string;
+  updated_at: string;
+};
 
 export function LiveStatus({ serviceRequestId, technicianId }: LiveStatusProps) {
   const [serviceRequest, setServiceRequest] = useState<ServiceRequest | null>(null)
@@ -22,7 +29,7 @@ export function LiveStatus({ serviceRequestId, technicianId }: LiveStatusProps) 
           setServiceRequest(payload.new)
         }
       })
-      return () => channel.unsubscribe()
+      return () => { channel.unsubscribe() }
     }
   }, [serviceRequestId, subscribeToServiceRequests])
 
@@ -33,7 +40,7 @@ export function LiveStatus({ serviceRequestId, technicianId }: LiveStatusProps) 
           setTechnician(payload.new)
         }
       })
-      return () => channel.unsubscribe()
+      return () => { channel.unsubscribe() }
     }
   }, [technicianId, subscribeToTechnicianLocations])
 
@@ -62,7 +69,7 @@ export function LiveStatus({ serviceRequestId, technicianId }: LiveStatusProps) 
               {serviceRequest.status.replace('_', ' ')}
             </span>
             <p className="mt-1 text-sm text-gray-600">
-              Last updated: {new Date(serviceRequest.updated_at).toLocaleString()}
+              Last updated: {new Date((serviceRequest as any).updated_at ?? serviceRequest.updatedAt).toLocaleString()}
             </p>
           </div>
         </div>

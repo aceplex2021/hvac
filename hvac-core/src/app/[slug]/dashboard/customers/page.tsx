@@ -70,7 +70,7 @@ export default function CustomerManagementPage() {
       setLoading(false);
     }
     if (slug) fetchCustomers();
-  }, [slug]);
+  }, [slug, supabase]);
 
   const serviceHistory: any[] = [];
   const communications: any[] = [];

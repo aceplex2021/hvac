@@ -12,13 +12,16 @@ interface SchedulingCalendarProps {
   className?: string
 }
 
+type ValuePiece = Date | null;
+type Value = ValuePiece | [ValuePiece, ValuePiece];
+
 export function SchedulingCalendar({ template, onTimeSlotSelect, className }: SchedulingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null)
   const [availability, setAvailability] = useState<Record<string, TimeSlot[]>>({})
 
   const getAvailableTimeSlots = useCallback((date: Date) => {
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as DayOfWeek
     const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
 
     if (!dailySchedule || !dailySchedule.isAvailable) {
@@ -31,14 +34,21 @@ export function SchedulingCalendar({ template, onTimeSlotSelect, className }: Sc
     })
   }, [template])
 
-  const handleDateChange = (date: Date) => {
-    setSelectedDate(date)
-    setSelectedTimeSlot(null)
-    const slots = getAvailableTimeSlots(date)
+  const handleDateChange = (value: Value, event?: React.MouseEvent<HTMLButtonElement>) => {
+    let date: Date | null = null;
+    if (Array.isArray(value)) {
+      date = value[0];
+    } else {
+      date = value;
+    }
+    if (!date) return;
+    setSelectedDate(date as Date);
+    setSelectedTimeSlot(null);
+    const slots = getAvailableTimeSlots(date as Date);
     setAvailability(prev => ({
       ...prev,
-      [date.toISOString()]: slots
-    }))
+      [(date as Date).toISOString()]: slots
+    }));
   }
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
@@ -52,7 +62,7 @@ export function SchedulingCalendar({ template, onTimeSlotSelect, className }: Sc
   }
 
   const tileClassName = ({ date }: { date: Date }) => {
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as DayOfWeek
     const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
     const hasAvailableSlots = dailySchedule?.isAvailable && dailySchedule.timeSlots.length > 0
 
@@ -64,7 +74,7 @@ export function SchedulingCalendar({ template, onTimeSlotSelect, className }: Sc
   }
 
   const tileDisabled = ({ date }: { date: Date }) => {
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'lowercase' }) as DayOfWeek
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as DayOfWeek
     const dailySchedule = template.dailySchedules.find(schedule => schedule.day === dayOfWeek)
     return !dailySchedule?.isAvailable || dailySchedule.timeSlots.length === 0
   }

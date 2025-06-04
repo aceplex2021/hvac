@@ -22,7 +22,7 @@ export async function auditLogger(request: NextRequest) {
         query: Object.fromEntries(request.nextUrl.searchParams),
         status: response.status
       },
-      request.ip || 'unknown',
+      request.headers.get('x-forwarded-for') || 'unknown',
       request.headers.get('user-agent') || 'unknown'
     )
   } catch (error) {

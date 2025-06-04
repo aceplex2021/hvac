@@ -10,7 +10,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function rateLimiter(config: RateLimitConfig) {
   return function middleware(request: NextRequest) {
-    const ip = request.ip || 'anonymous'
+    const ip = request.headers.get('x-forwarded-for') || 'anonymous'
     const now = Date.now()
     
     // Get or initialize rate limit data for this IP

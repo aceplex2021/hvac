@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle, Zap, Shield, Clock, BarChart, MessageSquare, X, Minimize2, Maximize2, Send } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -29,27 +29,16 @@ export default function LandingPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    if (showChat) {
-      fetchMessages();
-    }
-  }, [showChat]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles(name, avatar_url)
-        `)
+        .select(`*, sender:profiles(name, avatar_url)`)
         .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
         .order('created_at', { ascending: true });
-
       if (error) throw error;
       setMessages(data || []);
     } catch (error) {
@@ -57,7 +46,13 @@ export default function LandingPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (showChat) {
+      fetchMessages();
+    }
+  }, [showChat, fetchMessages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

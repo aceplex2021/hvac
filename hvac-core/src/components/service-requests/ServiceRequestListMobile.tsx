@@ -20,8 +20,8 @@ export function ServiceRequestListMobile({ requests, onSelect }: ServiceRequestL
         >
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-medium text-gray-900">{request.customer_name}</h3>
-              <p className="text-sm text-gray-500">{request.service_type}</p>
+              <h3 className="font-medium text-gray-900">{(request as any).customer_name ?? request.customerId}</h3>
+              <p className="text-sm text-gray-500">{(request as any).service_type ?? request.serviceTypeId}</p>
             </div>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
               getStatusColor(request.status)
@@ -31,8 +31,8 @@ export function ServiceRequestListMobile({ requests, onSelect }: ServiceRequestL
           </div>
           
           <div className="mt-2 text-sm text-gray-600">
-            <p>{format(new Date(request.scheduled_date), 'MMM d, yyyy h:mm a')}</p>
-            <p className="mt-1">{request.address}</p>
+            <p>{format(new Date((request as any).scheduled_date ?? request.scheduledDate), 'MMM d, yyyy h:mm a')}</p>
+            <p className="mt-1">{(request as any).address ?? 'N/A'}</p>
           </div>
 
           <div className="mt-3 flex justify-between items-center">
@@ -47,7 +47,7 @@ export function ServiceRequestListMobile({ requests, onSelect }: ServiceRequestL
               View Details
             </Button>
             <span className="text-xs text-gray-500">
-              Updated {format(new Date(request.updated_at), 'MMM d, h:mm a')}
+              Updated {format(new Date((request as any).updated_at ?? request.updatedAt), 'MMM d, h:mm a')}
             </span>
           </div>
         </div>

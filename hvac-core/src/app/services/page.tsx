@@ -1,11 +1,11 @@
 import { ServiceTypeManager } from '@/components/services/ServiceTypeManager'
 import { ServiceTemplateManager } from '@/components/services/ServiceTemplateManager'
-import { getServiceTypes, getServiceTemplates } from '@/lib/services'
+import { getServiceTemplates } from '@/lib/services'
 
 export default async function ServicesPage() {
   const [serviceTypes, serviceTemplates] = await Promise.all([
-    getServiceTypes(),
-    getServiceTemplates()
+    Promise.resolve([]),
+    getServiceTemplates('')
   ])
 
   return (

@@ -217,9 +217,7 @@ export default function BookingWidget({ config }: BookingWidgetProps) {
         <div className="text-center py-8">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">Booking Confirmed!</h3>
-          <p className="text-gray-600">
-            We've sent a confirmation email with your booking details.
-          </p>
+          <p className="text-gray-600">We&apos;ve sent a confirmation email with your booking details.</p>
         </div>
       )}
     </div>

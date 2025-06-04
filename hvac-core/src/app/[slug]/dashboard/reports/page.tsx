@@ -52,7 +52,7 @@ export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState('Last 30 Days');
   const [isCustomizing, setIsCustomizing] = useState(false);
 
-  const renderReportCard = (report) => (
+  const renderReportCard = (report: any) => (
     <div
       key={report.id}
       onClick={() => setSelectedReport(report.id)}

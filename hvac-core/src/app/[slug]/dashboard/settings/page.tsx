@@ -100,7 +100,7 @@ const PAYMENT_OPTIONS = [
 ];
 
 // Helper to format 24-hour time to 12-hour AM/PM
-function formatTime24to12(time) {
+function formatTime24to12(time: string) {
   if (!time) return '';
   const [hourStr, minuteStr] = time.split(':');
   let hour = parseInt(hourStr, 10);
@@ -145,7 +145,7 @@ export default function SettingsPage() {
       setLoadingProfile(false);
     }
     if (slug) fetchBusinessProfile();
-  }, [slug]);
+  }, [slug, supabase]);
 
   useEffect(() => {
     if (isEditing && businessProfile) {

@@ -87,7 +87,7 @@ export default function BookingPage() {
       setLoadingServices(false);
     }
     if (params.slug) fetchBusinessAndServices();
-  }, [params.slug]);
+  }, [supabase, params.slug]);
 
   useEffect(() => {
     // If service ID is provided in URL, set it as selected
@@ -99,7 +99,7 @@ export default function BookingPage() {
         setStep(2); // Skip to date selection
       }
     }
-  }, [searchParams, services]);
+  }, [supabase, searchParams, services]);
 
   useEffect(() => {
     async function fetchTimeSlots() {
@@ -125,7 +125,7 @@ export default function BookingPage() {
       }, 500);
     }
     if (selectedService && selectedDate) fetchTimeSlots();
-  }, [businessId, selectedService, selectedDate]);
+  }, [supabase, businessId, selectedService, selectedDate]);
 
   const handleServiceSelect = (service: Service) => {
     setSelectedService(service);
@@ -467,7 +467,7 @@ export default function BookingPage() {
               Your {selectedService?.name} appointment is scheduled for {selectedDate} at {selectedTime}.
             </p>
             <p className="text-gray-600 mb-6">
-              We've sent a confirmation email to {customerInfo.email} with all the details.
+              We&apos;ve sent a confirmation email to {customerInfo.email} with all the details.
             </p>
             <a
               href={`/${params.slug}`}

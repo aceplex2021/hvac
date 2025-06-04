@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ServiceHistory, ServiceHistoryFilters, ServiceHistoryAnalytics } from '@/types/service-history'
 import { getServiceHistory, getServiceHistoryAnalytics, exportServiceHistory } from '@/lib/services/history'
 import { Button } from '@/components/ui/Button'
@@ -12,11 +12,7 @@ export default function HistoryPage() {
   const [filters, setFilters] = useState<ServiceHistoryFilters>({})
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    loadHistory()
-  }, [filters])
-
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     try {
       setIsLoading(true)
       const [historyData, analyticsData] = await Promise.all([
@@ -30,7 +26,11 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filters]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [filters, loadHistory]);
 
   async function handleExport() {
     try {
@@ -104,10 +104,10 @@ export default function HistoryPage() {
               {history.map((item) => (
                 <tr key={item.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {item.service_request_id}
+                    {item.serviceRequestId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {item.technician.name}
+                    {item.technicianId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -120,13 +120,13 @@ export default function HistoryPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {format(new Date(item.start_time), 'MMM d, yyyy HH:mm')}
+                    {format(new Date(item.startTime), 'MMM d, yyyy HH:mm')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {item.end_time ? format(new Date(item.end_time), 'MMM d, yyyy HH:mm') : '-'}
+                    {item.endTime ? format(new Date(item.endTime), 'MMM d, yyyy HH:mm') : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    ${item.total_cost.toLocaleString()}
+                    ${item.totalCost.toLocaleString()}
                   </td>
                 </tr>
               ))}

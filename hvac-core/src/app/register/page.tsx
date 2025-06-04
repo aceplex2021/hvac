@@ -223,6 +223,17 @@ export default function RegisterPage() {
     handleNext();
   };
 
+  // Add a wrapper for handleSubmit to use as a MouseEvent handler
+  const handleSubmitClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    // Create a fake FormEvent to call handleSubmit
+    const form = e.currentTarget.closest('form');
+    if (form) {
+      const event = new Event('submit', { bubbles: true, cancelable: true });
+      form.dispatchEvent(event);
+    }
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
@@ -442,7 +453,7 @@ export default function RegisterPage() {
             
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-sm text-gray-600">
-                For now, we'll use your business address as the center point. In the future, you'll be able to define specific service areas.
+                For now, we&apos;ll use your business address as the center point. In the future, you&apos;ll be able to define specific service areas.
               </p>
             </div>
             
@@ -530,7 +541,7 @@ export default function RegisterPage() {
             <p className="text-gray-600">Set up your payment method for the {PACKAGES.find(p => p.id === selectedPackage)?.name} package.</p>
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-sm text-gray-600">
-                For demonstration purposes, we're not collecting actual payment information. In a real implementation, this would connect to a payment processor.
+                For demonstration purposes, we&apos;re not collecting actual payment information. In a real implementation, this would connect to a payment processor.
               </p>
             </div>
             <form className="space-y-4">
@@ -738,13 +749,22 @@ export default function RegisterPage() {
                   >
                     Back
                   </button>
-                  <button
-                    type={currentStep === REGISTRATION_STEPS.length - 2 ? 'submit' : 'button'}
-                    onClick={currentStep === REGISTRATION_STEPS.length - 2 ? handleSubmit : handleNext}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    {currentStep === REGISTRATION_STEPS.length - 2 ? 'Complete' : 'Next'}
-                  </button>
+                  {currentStep === REGISTRATION_STEPS.length - 2 ? (
+                    <button
+                      type="submit"
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Complete
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Next
+                    </button>
+                  )}
                 </div>
               )}
             </div>

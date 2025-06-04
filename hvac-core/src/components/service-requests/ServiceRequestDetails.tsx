@@ -1,6 +1,6 @@
 'use client'
 
-import { ServiceRequestDetails } from '@/types/service-request'
+import type { ServiceRequestDetails } from '@/types/service-request'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 

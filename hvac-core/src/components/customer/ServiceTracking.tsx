@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Clock, MapPin, CheckCircle2, AlertCircle, Clock4 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
+import Image from 'next/image';
 
 interface Service {
   id: string;
@@ -32,11 +33,7 @@ export function ServiceTracking() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -62,7 +59,11 @@ export function ServiceTracking() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -159,10 +160,12 @@ export function ServiceTracking() {
                   <h4 className="font-medium mb-2">Service Photos</h4>
                   <div className="grid grid-cols-3 gap-2">
                     {service.photos.map((photo, index) => (
-                      <img
+                      <Image
                         key={index}
                         src={photo}
                         alt={`Service photo ${index + 1}`}
+                        width={200}
+                        height={200}
                         className="w-full h-24 object-cover rounded-md"
                       />
                     ))}

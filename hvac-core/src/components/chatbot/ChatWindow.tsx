@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRealtime } from '@/contexts/RealtimeContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
@@ -26,24 +26,7 @@ export function ChatWindow({ chatId, userId, userName }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { subscribeToChatMessages } = useRealtime()
 
-  useEffect(() => {
-    loadMessages()
-  }, [chatId])
-
-  useEffect(() => {
-    const channel = subscribeToChatMessages((payload) => {
-      if (payload.new.chat_id === chatId) {
-        setMessages(prev => [...prev, payload.new])
-      }
-    })
-    return () => channel.unsubscribe()
-  }, [chatId, subscribeToChatMessages])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
@@ -59,7 +42,26 @@ export function ChatWindow({ chatId, userId, userName }: ChatWindowProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [chatId])
+
+  useEffect(() => {
+    loadMessages()
+  }, [loadMessages])
+
+  useEffect(() => {
+    const channel = subscribeToChatMessages((payload) => {
+      if (payload.new.chat_id === chatId) {
+        setMessages(prev => [...prev, payload.new])
+      }
+    })
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [chatId, subscribeToChatMessages])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   async function handleSendMessage() {
     if (!newMessage.trim()) return

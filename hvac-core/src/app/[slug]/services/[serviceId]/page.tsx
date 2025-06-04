@@ -8,6 +8,7 @@ import {
   Calendar,
   ChevronRight
 } from 'lucide-react';
+import Image from 'next/image';
 
 // Mock data - will be replaced with API calls
 const mockServiceDetails = {
@@ -99,9 +100,11 @@ export default function ServiceDetailsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {service.images.map((image, index) => (
               <div key={index} className="relative aspect-w-16 aspect-h-9">
-                <img
+                <Image
                   src={image}
                   alt={`${service.name} - Image ${index + 1}`}
+                  width={500}
+                  height={281}
                   className="rounded-lg object-cover w-full h-full"
                 />
               </div>

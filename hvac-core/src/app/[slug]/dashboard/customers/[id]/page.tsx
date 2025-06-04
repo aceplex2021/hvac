@@ -63,7 +63,7 @@ export default function CustomerProfilePage() {
       setLoading(false);
     }
     if (slug && customerId) fetchCustomer();
-  }, [slug, customerId]);
+  }, [slug, customerId, supabase]);
 
   if (loading) return <div>Loading customer...</div>;
   if (error) return <div className="text-red-600">{error}</div>;

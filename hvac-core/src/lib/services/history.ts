@@ -119,8 +119,8 @@ export async function getServiceHistoryAnalytics(filters: ServiceHistoryFilters 
     averageCompletionTime,
     totalRevenue,
     statusDistribution,
-    technicianPerformance,
-    serviceTypeDistribution
+    technicianPerformance: technicianPerformance as ServiceHistoryAnalytics['technicianPerformance'],
+    serviceTypeDistribution: serviceTypeDistribution as ServiceHistoryAnalytics['serviceTypeDistribution']
   }
 }
 

@@ -264,8 +264,35 @@ export function ServiceTemplateForm({ businessId, initialData, onSubmit, onCance
         </div>
 
         <div className="space-y-6">
-          <PricePreview template={formData} />
-          <SchedulingPreview template={formData} />
+          <PricePreview template={{
+            id: '',
+            businessId: '',
+            name: formData.name || '',
+            description: formData.description || '',
+            basePrice: formData.basePrice || 0,
+            pricingModel: formData.pricingModel || 'fixed',
+            pricingRules: formData.pricingRules || [],
+            duration: formData.duration || 60,
+            schedulingRules: formData.schedulingRules || [],
+            requiredMaterials: formData.requiredMaterials || [],
+            checklist: formData.checklist || [],
+            isActive: formData.isActive ?? true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }} />
+          <SchedulingPreview template={{
+            id: '',
+            name: formData.name || '',
+            description: formData.description || '',
+            defaultDuration: 60,
+            dailySchedules: [],
+            rules: [],
+            bufferTime: 0,
+            maxBookingsPerSlot: 1,
+            isActive: formData.isActive ?? true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }} />
         </div>
       </div>
 

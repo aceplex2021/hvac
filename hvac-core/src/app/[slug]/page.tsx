@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   Phone, 
   MapPin, 
@@ -84,13 +85,7 @@ export default function BusinessLandingPage() {
     if (slug) fetchBusiness();
   }, [slug]);
 
-  useEffect(() => {
-    if (showChat) {
-      fetchMessages();
-    }
-  }, [showChat]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -112,7 +107,13 @@ export default function BusinessLandingPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (showChat) {
+      fetchMessages();
+    }
+  }, [showChat, fetchMessages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,7 +156,7 @@ export default function BusinessLandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <img src={business.logo} alt={`${business.name} logo`} className="h-8 w-auto" />
+              <Image src={business.logo} alt={`${business.name} logo`} className="h-8 w-auto" width={32} height={32} />
             </div>
             <div className="flex items-center space-x-4">
               <button

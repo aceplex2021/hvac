@@ -8,7 +8,7 @@ interface ResourcePreloaderProps {
     type: 'script' | 'style' | 'font' | 'image'
     href: string
     as?: string
-    crossOrigin?: string
+    crossOrigin?: "anonymous" | "use-credentials"
   }[]
 }
 

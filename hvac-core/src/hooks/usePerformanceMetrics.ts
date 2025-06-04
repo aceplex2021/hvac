@@ -1,5 +1,10 @@
 import { useEffect } from 'react'
 
+interface PerformanceLayoutShift extends PerformanceEntry {
+  value: number;
+  hadRecentInput: boolean;
+}
+
 interface PerformanceMetrics {
   fcp: number
   lcp: number
@@ -29,7 +34,7 @@ export function usePerformanceMetrics(onMetrics?: (metrics: PerformanceMetrics) 
       const lcp = entries[entries.length - 1]?.startTime || 0
       
       if (onMetrics) {
-        onMetrics((prev) => ({ ...prev, lcp }))
+        onMetrics({ fcp: 0, lcp, fid: 0, cls: 0, ttfb: 0 })
       }
     })
     lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
@@ -37,10 +42,10 @@ export function usePerformanceMetrics(onMetrics?: (metrics: PerformanceMetrics) 
     // Track First Input Delay (FID)
     const fidObserver = new PerformanceObserver((entryList) => {
       const entries = entryList.getEntries()
-      const fid = entries[0]?.processingStart - entries[0]?.startTime || 0
+      const fid = entries[0] ? ((entries[0] as PerformanceEventTiming).processingStart - entries[0].startTime) : 0
       
       if (onMetrics) {
-        onMetrics((prev) => ({ ...prev, fid }))
+        onMetrics({ fcp: 0, lcp: 0, fid, cls: 0, ttfb: 0 })
       }
     })
     fidObserver.observe({ entryTypes: ['first-input'] })
@@ -49,13 +54,13 @@ export function usePerformanceMetrics(onMetrics?: (metrics: PerformanceMetrics) 
     let cls = 0
     const clsObserver = new PerformanceObserver((entryList) => {
       for (const entry of entryList.getEntries()) {
-        if (!entry.hadRecentInput) {
-          cls += entry.value
+        if (!(entry as PerformanceLayoutShift).hadRecentInput) {
+          cls += (entry as PerformanceLayoutShift).value
         }
       }
       
       if (onMetrics) {
-        onMetrics((prev) => ({ ...prev, cls }))
+        onMetrics({ fcp: 0, lcp: 0, fid: 0, cls, ttfb: 0 })
       }
     })
     clsObserver.observe({ entryTypes: ['layout-shift'] })
@@ -64,7 +69,7 @@ export function usePerformanceMetrics(onMetrics?: (metrics: PerformanceMetrics) 
     const ttfb = performance.timing.responseStart - performance.timing.requestStart
     
     if (onMetrics) {
-      onMetrics((prev) => ({ ...prev, ttfb }))
+      onMetrics({ fcp: 0, lcp: 0, fid: 0, cls: 0, ttfb })
     }
 
     return () => {

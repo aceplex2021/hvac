@@ -347,3 +347,15 @@ CREATE TABLE hvac_notifications (
     message TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 ); 
+
+CREATE TABLE hvac_expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID REFERENCES hvac_businesses(id) ON DELETE CASCADE NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    status TEXT CHECK (status IN ('Paid', 'Pending', 'Overdue')) NOT NULL,
+    date DATE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Customer } from '@/types/customer'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 interface CustomerSearchProps {
   onSelect: (customer: Customer) => void

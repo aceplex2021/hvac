@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Clock, DollarSign, MapPin } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -37,11 +37,7 @@ export function BookingHistory() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  useEffect(() => {
-    fetchBookings();
-  }, [statusFilter, dateFilter]);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -79,7 +75,11 @@ export function BookingHistory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, dateFilter, supabase]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   if (loading) {
     return (

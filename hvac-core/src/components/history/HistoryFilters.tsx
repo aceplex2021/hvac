@@ -23,7 +23,7 @@ export function HistoryFilters({ filters, onFiltersChange }: HistoryFiltersProps
   const handleApply = () => {
     onFiltersChange({
       dateRange,
-      status: status.length ? status : undefined,
+      status: status.length ? status as any : undefined,
       technicianId,
       customerId,
       serviceTypeId

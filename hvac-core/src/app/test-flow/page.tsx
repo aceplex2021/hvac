@@ -32,7 +32,7 @@ export default function TestFlowPage() {
         return (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Welcome to HVAC Service Manager</h2>
-            <p className="text-gray-600">Let's set up your business profile</p>
+            <p className="text-gray-600">Let&apos;s set up your business profile</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Business Name</label>

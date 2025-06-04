@@ -29,18 +29,18 @@ export default function TeamPage() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formRole, setFormRole] = useState('');
-  const [formPermissions, setFormPermissions] = useState([]);
-  const [formHourlyRate, setFormHourlyRate] = useState('');
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [formName, setFormName] = useState<string>('');
+  const [formEmail, setFormEmail] = useState<string>('');
+  const [formPhone, setFormPhone] = useState<string>('');
+  const [formRole, setFormRole] = useState<string>('');
+  const [formPermissions, setFormPermissions] = useState<any[]>([]);
+  const [formHourlyRate, setFormHourlyRate] = useState<string>('');
 
   useEffect(() => {
     async function fetchTeam() {
@@ -69,7 +69,7 @@ export default function TeamPage() {
         return;
       }
       // Check if owner is in team (by user_id and business_id)
-      const ownerTech = techs.find(t => t.user_id === business.owner_id && t.business_id === business.id);
+      const ownerTech = (techs || []).find(t => t.user_id === business.owner_id && t.business_id === business.id);
       if (!ownerTech) {
         const ownerEmail = business.contact_email || 'owner@unknown.com';
         const ownerPhone = business.contact_phone || '';
@@ -102,23 +102,23 @@ export default function TeamPage() {
       }
       // Always show owner/admin at the top
       const sortedTechs = [
-        ...techs.filter(t => t.user_id === business.owner_id),
-        ...techs.filter(t => t.user_id !== business.owner_id)
+        ...(techs || []).filter(t => t.user_id === business.owner_id),
+        ...(techs || []).filter(t => t.user_id !== business.owner_id)
       ];
       setTeamMembers(sortedTechs);
       setLoading(false);
     }
     if (slug) fetchTeam();
-  }, [slug]);
+  }, [slug, supabase]);
 
   useEffect(() => {
     if (isEditing && selectedMember) {
-      setFormName(selectedMember.name || '');
-      setFormEmail(selectedMember.email || '');
-      setFormPhone(selectedMember.phone || '');
-      setFormRole(selectedMember.role || '');
-      setFormPermissions(selectedMember.permissions || []);
-      setFormHourlyRate(selectedMember.hourly_rate?.toString() || '');
+      setFormName(selectedMember?.name || '');
+      setFormEmail(selectedMember?.email || '');
+      setFormPhone(selectedMember?.phone || '');
+      setFormRole(selectedMember?.role || '');
+      setFormPermissions(selectedMember?.permissions || []);
+      setFormHourlyRate(selectedMember?.hourly_rate?.toString() || '');
     } else if (isAddingMember) {
       setFormName('');
       setFormEmail('');
@@ -134,12 +134,12 @@ export default function TeamPage() {
     setSelectedMember(null);
   };
 
-  const handleEditMember = (member) => {
+  const handleEditMember = (member: any) => {
     setIsEditing(true);
     setSelectedMember(member);
   };
 
-  const handleDeleteMember = async (memberId) => {
+  const handleDeleteMember = async (memberId: any) => {
     setLoading(true);
     setError(null);
     const { error: delError } = await supabase
@@ -153,6 +153,11 @@ export default function TeamPage() {
       .select('id')
       .eq('slug', slug)
       .single();
+    if (!business) {
+      setError('Business not found.');
+      setLoading(false);
+      return;
+    }
     const { data: techs } = await supabase
       .from('hvac_technicians')
       .select('*')
@@ -161,7 +166,7 @@ export default function TeamPage() {
     setLoading(false);
   };
 
-  const handlePermissionChange = (permName) => {
+  const handlePermissionChange = (permName: string) => {
     setFormPermissions((prev) =>
       prev.includes(permName)
         ? prev.filter((p) => p !== permName)
@@ -197,7 +202,7 @@ export default function TeamPage() {
     });
   };
 
-  const handleSaveMember = async (memberData) => {
+  const handleSaveMember = async (memberData: any) => {
     setLoading(true);
     setError(null);
     const { data: business } = await supabase
@@ -232,7 +237,7 @@ export default function TeamPage() {
     setLoading(false);
   };
 
-  const renderMemberCard = (member) => {
+  const renderMemberCard = (member: any) => {
     const permissions = Array.isArray(member.permissions) ? member.permissions : [];
     return (
       <div key={member.id} className="bg-white shadow rounded-lg p-6">
@@ -275,7 +280,7 @@ export default function TeamPage() {
         <div className="mt-4">
           <h4 className="text-sm font-medium text-gray-700">Permissions</h4>
           <div className="mt-2 flex flex-wrap gap-2">
-            {permissions.map((permission) => (
+            {permissions.map((permission: string) => (
               <span
                 key={permission}
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"

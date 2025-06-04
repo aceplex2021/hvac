@@ -1,4 +1,5 @@
 // import { ServiceTemplate, PricingRule } from '@/types/services'
+import type { ServiceTemplate, PricingRule } from '@/types/services'
 
 interface PricingContext {
   timeOfDay?: string // e.g., "09:00", "17:30"
@@ -39,12 +40,12 @@ function shouldApplyRule(rule: PricingRule, context: PricingContext): boolean {
   const condition = rule.condition.toLowerCase()
   
   if (condition.includes('timeofday') && context.timeOfDay) {
-    const [start, end] = rule.value.split('-')
+    const [start, end] = (rule as any).value.split('-')
     return isTimeBetween(context.timeOfDay, start, end)
   }
   
   if (condition.includes('dayofweek') && context.dayOfWeek) {
-    return context.dayOfWeek.toLowerCase() === rule.value.toLowerCase()
+    return context.dayOfWeek.toLowerCase() === (rule as any).value.toLowerCase()
   }
   
   if (condition.includes('emergency') && context.isEmergency) {
@@ -56,11 +57,11 @@ function shouldApplyRule(rule: PricingRule, context: PricingContext): boolean {
   }
   
   if (condition.includes('customertype') && context.customerType) {
-    return context.customerType.toLowerCase() === rule.value.toLowerCase()
+    return context.customerType.toLowerCase() === (rule as any).value.toLowerCase()
   }
   
   if (condition.includes('distance') && context.location?.distance) {
-    const maxDistance = parseFloat(rule.value)
+    const maxDistance = parseFloat((rule as any).value)
     return context.location.distance > maxDistance
   }
   

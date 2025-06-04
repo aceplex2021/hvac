@@ -1,6 +1,6 @@
 'use client'
 
-import { CustomerProfile } from '@/types/customer'
+import type { CustomerProfile } from '@/types/customer'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 

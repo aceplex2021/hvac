@@ -18,65 +18,6 @@ import {
 import { createBrowserClient } from '@supabase/ssr';
 import { useParams } from 'next/navigation';
 
-const mockAppointments = [
-  {
-    id: 1,
-    customer: 'John Smith',
-    service: 'AC Repair',
-    date: '2024-03-15',
-    time: '09:00',
-    status: 'Confirmed',
-    address: '123 Main St, City, State',
-    phone: '(555) 123-4567',
-    email: 'john@example.com'
-  },
-  {
-    id: 2,
-    customer: 'Sarah Johnson',
-    service: 'Maintenance Check',
-    date: '2024-03-15',
-    time: '14:00',
-    status: 'Pending',
-    address: '456 Oak Ave, City, State',
-    phone: '(555) 987-6543',
-    email: 'sarah@example.com'
-  }
-];
-
-const mockServiceRequests = [
-  {
-    id: 1,
-    customer: 'Mike Brown',
-    service: 'AC Installation',
-    date: '2024-03-14',
-    status: 'New',
-    priority: 'High',
-    description: 'Need new AC unit installed in 2-bedroom apartment'
-  },
-  {
-    id: 2,
-    customer: 'Lisa Davis',
-    service: 'AC Repair',
-    date: '2024-03-14',
-    status: 'In Progress',
-    priority: 'Medium',
-    description: 'AC not cooling properly, needs inspection'
-  }
-];
-
-const mockTechnicians = [
-  { id: 1, name: 'Mike Brown' },
-  { id: 2, name: 'Lisa Davis' },
-  { id: 3, name: 'Alex Kim' },
-];
-
-const mockCustomers = [
-  { id: 1, name: 'John Smith' },
-  { id: 2, name: 'Sarah Johnson' },
-  { id: 3, name: 'Mike Brown' },
-  { id: 4, name: 'Lisa Davis' },
-];
-
 const TABS = [
   { id: 'services', name: 'Services', icon: Wrench },
   { id: 'appointments', name: 'Appointments', icon: Calendar },
@@ -88,7 +29,7 @@ const SERVICE_CATEGORIES = [
   { key: 'heating', label: 'Heating' },
   { key: 'air_conditioning', label: 'Air Conditioning' },
 ];
-const SERVICES_BY_CATEGORY = {
+const SERVICES_BY_CATEGORY: { [key: string]: string[] } = {
   heating: [
     'Furnace Installation',
     'Furnace Repair',
@@ -125,10 +66,11 @@ export default function ServiceManagementPage() {
   const [workOrderForm, setWorkOrderForm] = useState({
     customer: '',
     service: '',
-    date: '',
     priority: 'Medium',
+    type: 'repair',
     description: '',
     technician: '',
+    status: 'scheduled',
   });
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -145,8 +87,8 @@ export default function ServiceManagementPage() {
   const [addServiceLoading, setAddServiceLoading] = useState(false);
   const [addServiceError, setAddServiceError] = useState<string | null>(null);
 
-  const customerInputRef = useRef(null);
-  const customerDropdownRef = useRef(null);
+  const customerInputRef = useRef<HTMLDivElement | null>(null);
+  const customerDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
@@ -175,21 +117,93 @@ export default function ServiceManagementPage() {
   const [businessConfigEditing, setBusinessConfigEditing] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
 
+  const [creatingWorkOrder, setCreatingWorkOrder] = useState(false);
+
+  // Fetch customers and technicians for dropdowns
+  const [customers, setCustomers] = useState<{id: any, name: any}[]>([]);
+  useEffect(() => {
+    async function fetchCustomers() {
+      if (!slug) return;
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: business } = await supabase
+        .from('hvac_businesses')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (!business) return;
+      const { data: clients } = await supabase
+        .from('hvac_clients')
+        .select('id, name')
+        .eq('business_id', business.id);
+      setCustomers(clients || []);
+    }
+    fetchCustomers();
+  }, [slug, supabase]);
+
+  // Fetch services for dropdown
+  useEffect(() => {
+    async function fetchServices() {
+      if (!slug) return;
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: business } = await supabase
+        .from('hvac_businesses')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (!business) return;
+      const { data: services } = await supabase
+        .from('hvac_services')
+        .select('id, name')
+        .eq('business_id', business.id);
+      setServices(services || []);
+    }
+    fetchServices();
+  }, [slug, supabase]);
+
+  // Fetch technicians for dropdown
+  useEffect(() => {
+    async function fetchTechs() {
+      if (!slug) return;
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: business } = await supabase
+        .from('hvac_businesses')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (!business) return;
+      const { data: techs } = await supabase
+        .from('hvac_technicians')
+        .select('id, name')
+        .eq('business_id', business.id);
+      setTechnicians(techs || []);
+    }
+    fetchTechs();
+  }, [slug, supabase]);
+
   useEffect(() => {
     if (!showCustomerDropdown) return;
-    function handleClickOutside(event) {
+    function handleClickOutside(event: MouseEvent) {
       if (
         customerInputRef.current &&
-        !customerInputRef.current.contains(event.target) &&
+        !customerInputRef.current.contains(event.target as Node) &&
         customerDropdownRef.current &&
-        !customerDropdownRef.current.contains(event.target)
+        !customerDropdownRef.current.contains(event.target as Node)
       ) {
         setShowCustomerDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showCustomerDropdown]);
+  }, [showCustomerDropdown, setShowCustomerDropdown, customerInputRef, customerDropdownRef]);
 
   useEffect(() => {
     async function fetchServices() {
@@ -220,7 +234,7 @@ export default function ServiceManagementPage() {
       setLoadingServices(false);
     }
     if (slug) fetchServices();
-  }, [slug]);
+  }, [slug, supabase]);
 
   useEffect(() => {
     async function fetchAppointments() {
@@ -251,10 +265,11 @@ export default function ServiceManagementPage() {
         setAppointments(
           bookings.map((b: any) => {
             const dateObj = new Date(b.scheduled_date);
+            const customerName = (b.hvac_clients as { name?: string } | undefined)?.name || '';
             return {
               id: b.id,
-              customer: b.hvac_clients?.name || '',
-              service: b.hvac_services?.name || '',
+              customer: customerName,
+              service: (Array.isArray(b.hvac_services) ? (b.hvac_services[0] as { name?: string })?.name : (b.hvac_services as { name?: string })?.name) || '',
               date: dateObj.toLocaleDateString(),
               time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               status: b.status.charAt(0).toUpperCase() + b.status.slice(1),
@@ -268,7 +283,7 @@ export default function ServiceManagementPage() {
       setLoadingAppointments(false);
     }
     if (slug && activeTab === 'appointments') fetchAppointments();
-  }, [slug, activeTab]);
+  }, [slug, activeTab, supabase, customers, services]);
 
   useEffect(() => {
     async function fetchServiceRequests() {
@@ -289,22 +304,23 @@ export default function ServiceManagementPage() {
       // 2. Fetch work orders for this business, join clients/services
       const { data: workOrders, error: workOrdersError } = await supabase
         .from('hvac_work_orders')
-        .select(`id, status, priority, type, description, start_time, hvac_clients(name), hvac_services(name)`) // join
-        .eq('business_id', business.id)
-        .order('start_time', { ascending: false });
+        .select('*');
       if (workOrdersError || !workOrders) {
         setServiceRequests([]);
         setServiceRequestsError('Failed to fetch service requests.');
       } else {
+        const filteredWorkOrders = workOrders.filter(w => w.business_id === business.id);
         setServiceRequests(
-          workOrders.map((w: any) => {
+          filteredWorkOrders.map((w) => {
             const dateObj = w.start_time ? new Date(w.start_time) : null;
+            const customerObj = customers.find(c => c.id === w.client_id);
+            const serviceObj = services.find(s => s.id === w.service_id);
             return {
               id: w.id,
-              customer: w.hvac_clients?.name || '',
-              service: w.hvac_services?.name || '',
+              customer: (Array.isArray(w.hvac_clients) ? (w.hvac_clients[0] as { name?: string })?.name : (w.hvac_clients as { name?: string })?.name) || '',
+              service: (Array.isArray(w.hvac_services) ? (w.hvac_services[0] as { name?: string })?.name : (w.hvac_services as { name?: string })?.name) || '',
               date: dateObj ? dateObj.toLocaleDateString() : '',
-              status: w.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              status: w.status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
               priority: w.priority.charAt(0).toUpperCase() + w.priority.slice(1),
               description: w.description || '',
             };
@@ -314,27 +330,7 @@ export default function ServiceManagementPage() {
       setLoadingServiceRequests(false);
     }
     if (slug && activeTab === 'requests') fetchServiceRequests();
-  }, [slug, activeTab]);
-
-  useEffect(() => {
-    async function fetchTechnicians() {
-      if (!slug) return;
-      const { data: business, error: bizError } = await supabase
-        .from('hvac_businesses')
-        .select('id')
-        .eq('slug', slug)
-        .single();
-      if (bizError || !business) return;
-      const { data: techs } = await supabase
-        .from('hvac_technicians')
-        .select('id, name')
-        .eq('business_id', business.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-      setTechnicians(techs || []);
-    }
-    fetchTechnicians();
-  }, [slug]);
+  }, [slug, activeTab, supabase, customers, services]);
 
   useEffect(() => {
     async function fetchEquipment() {
@@ -346,7 +342,7 @@ export default function ServiceManagementPage() {
       setClientEquipment(equipment || []);
     }
     fetchEquipment();
-  }, [editAppointment]);
+  }, [editAppointment, supabase]);
 
   // Fetch business config fields
   useEffect(() => {
@@ -379,40 +375,99 @@ export default function ServiceManagementPage() {
       setBusinessConfigLoading(false);
     }
     if (slug) fetchBusinessConfig();
-  }, [slug]);
+  }, [slug, supabase]);
 
   const filteredCustomers = customerSearch
-    ? mockCustomers.filter((c) => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
-    : mockCustomers;
+    ? customers.filter((c) => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
+    : customers;
 
-  const handleCustomerSelect = (name) => {
+  const handleCustomerSelect = (name: any) => {
     setWorkOrderForm({ ...workOrderForm, customer: name });
     setCustomerSearch(name);
     setShowCustomerDropdown(false);
   };
 
-  const handleWorkOrderChange = (e) => {
-    setWorkOrderForm({
-      ...workOrderForm,
-      [e.target.name]: e.target.value,
-    });
+  const handleWorkOrderFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setWorkOrderForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleWorkOrderSubmit = (e) => {
+  const handleWorkOrderSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Here you would send the work order to the backend
-    setShowWorkOrderModal(false);
-    setWorkOrderForm({
-      customer: '',
-      service: '',
-      date: '',
-      priority: 'Medium',
-      description: '',
-      technician: '',
-    });
+    setCreatingWorkOrder(true);
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    // Get business_id
+    const { data: business } = await supabase
+      .from('hvac_businesses')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+    if (!business) {
+      setCreatingWorkOrder(false);
+      return;
+    }
+    // Insert work order
+    const { error } = await supabase.from('hvac_work_orders').insert([
+      {
+        business_id: business.id,
+        client_id: workOrderForm.customer,
+        technician_id: workOrderForm.technician || null,
+        status: workOrderForm.status,
+        priority: workOrderForm.priority.toLowerCase(),
+        type: workOrderForm.type,
+        description: workOrderForm.description,
+        // Add more fields as needed
+      }
+    ]);
+    setCreatingWorkOrder(false);
+    if (!error) {
+      setShowWorkOrderModal(false);
+      setWorkOrderForm({
+        customer: '',
+        service: '',
+        priority: 'Medium',
+        type: 'repair',
+        description: '',
+        technician: '',
+        status: 'scheduled',
+      });
+      // Refresh service requests
+      setLoadingServiceRequests(true);
+      setServiceRequestsError(null);
+      const { data: workOrders, error: workOrdersError } = await supabase
+        .from('hvac_work_orders')
+        .select(`id, status, priority, type, description, start_time, hvac_clients(name), hvac_services(name)`)
+        .eq('business_id', business.id)
+        .order('start_time', { ascending: false });
+      if (workOrdersError || !workOrders) {
+        setServiceRequests([]);
+        setServiceRequestsError('Failed to fetch service requests.');
+      } else {
+        setServiceRequests(
+          workOrders.map((w) => {
+            const dateObj = w.start_time ? new Date(w.start_time) : null;
+            return {
+              id: w.id,
+              customer: (Array.isArray(w.hvac_clients) ? (w.hvac_clients[0] as { name?: string })?.name : (w.hvac_clients as { name?: string })?.name) || '',
+              service: (Array.isArray(w.hvac_services) ? (w.hvac_services[0] as { name?: string })?.name : (w.hvac_services as { name?: string })?.name) || '',
+              date: dateObj ? dateObj.toLocaleDateString() : '',
+              status: w.status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+              priority: w.priority.charAt(0).toUpperCase() + w.priority.slice(1),
+              description: w.description || '',
+            };
+          })
+        );
+      }
+      setLoadingServiceRequests(false);
+    } else {
+      alert('Failed to create work order: ' + error.message);
+    }
   };
 
-  const handleAddServiceChange = (e) => {
+  const handleAddServiceChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>) => {
     setAddServiceForm({
       ...addServiceForm,
       [e.target.name]: e.target.value,
@@ -421,7 +476,7 @@ export default function ServiceManagementPage() {
     });
   };
 
-  const handleAddServiceSubmit = async (e) => {
+  const handleAddServiceSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAddServiceLoading(true);
     setAddServiceError(null);
@@ -479,7 +534,7 @@ export default function ServiceManagementPage() {
   };
 
   // Handler for editing config fields
-  const handleBusinessConfigChange = (e) => {
+  const handleBusinessConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setBusinessConfig((prev) => ({ ...prev, [name]: value }));
   };
@@ -633,7 +688,7 @@ export default function ServiceManagementPage() {
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="">Select service</option>
-                  {SERVICES_BY_CATEGORY[addServiceForm.category].map((svc) => (
+                  {(SERVICES_BY_CATEGORY[addServiceForm.category] || []).map((svc: string) => (
                     <option key={svc} value={svc}>{svc}</option>
                   ))}
                 </select>
@@ -1042,8 +1097,8 @@ export default function ServiceManagementPage() {
                           const dateObj = new Date(b.scheduled_date);
                           return {
                             id: b.id,
-                            customer: b.hvac_clients?.name || '',
-                            service: b.hvac_services?.name || '',
+                            customer: (Array.isArray(b.hvac_clients) ? (b.hvac_clients[0] as { name?: string })?.name : (b.hvac_clients as { name?: string })?.name) || '',
+                            service: (Array.isArray(b.hvac_services) ? (b.hvac_services[0] as { name?: string })?.name : (b.hvac_services as { name?: string })?.name) || '',
                             date: dateObj.toLocaleDateString(),
                             time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                             status: b.status.charAt(0).toUpperCase() + b.status.slice(1),
@@ -1324,6 +1379,120 @@ export default function ServiceManagementPage() {
                   disabled={editLoading}
                 >
                   {editLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showWorkOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg relative flex flex-col">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowWorkOrderModal(false)}
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Create Work Order</h3>
+            <form onSubmit={handleWorkOrderSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer</label>
+                <select
+                  name="customer"
+                  value={workOrderForm.customer}
+                  onChange={handleWorkOrderFormChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="">Select a customer</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Service Type</label>
+                <select
+                  name="type"
+                  value={workOrderForm.type}
+                  onChange={handleWorkOrderFormChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="repair">Repair</option>
+                  <option value="installation">Installation</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Priority</label>
+                <select
+                  name="priority"
+                  value={workOrderForm.priority}
+                  onChange={handleWorkOrderFormChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Emergency">Emergency</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <textarea
+                  name="description"
+                  value={workOrderForm.description}
+                  onChange={handleWorkOrderFormChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Technician</label>
+                <select
+                  name="technician"
+                  value={workOrderForm.technician}
+                  onChange={handleWorkOrderFormChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="">Unassigned</option>
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  name="status"
+                  value={workOrderForm.status}
+                  onChange={handleWorkOrderFormChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="mr-2 px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  onClick={() => setShowWorkOrderModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingWorkOrder}
+                  className="px-4 py-2 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  {creatingWorkOrder ? 'Creating...' : 'Create Work Order'}
                 </button>
               </div>
             </form>
