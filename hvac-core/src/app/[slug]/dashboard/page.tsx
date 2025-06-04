@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, Users, DollarSign } from 'lucide-react';
+import { Calendar, Users, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const params = useParams();
@@ -10,6 +10,16 @@ export default function DashboardPage() {
   const [business, setBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    activeRequests: 0,
+    pendingAppointments: 0,
+    monthlyRevenue: 0,
+    customerCount: 0,
+  });
+  const [revenueMonth, setRevenueMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   useEffect(() => {
     async function fetchBusiness() {
@@ -41,13 +51,74 @@ export default function DashboardPage() {
     if (slug) fetchBusiness();
   }, [slug]);
 
-  // Mock data for demonstration (keep for other sections)
-  const mockStats = {
-    activeRequests: 5,
-    pendingAppointments: 12,
-    monthlyRevenue: 12500,
-    customerCount: 45,
-  };
+  useEffect(() => {
+    async function fetchStats(businessId: string) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        // Active Bookings (pending or confirmed)
+        let activeRequests = 0;
+        let pendingAppointments = 0;
+        try {
+          const { data, count } = await supabase
+            .from('hvac_bookings')
+            .select('id, status', { count: 'exact' })
+            .eq('business_id', businessId);
+          activeRequests = (data || []).filter((b: any) => ['pending', 'confirmed'].includes((b.status || '').toLowerCase())).length;
+          pendingAppointments = (data || []).filter((b: any) => (b.status || '').toLowerCase() === 'pending').length;
+        } catch {
+          activeRequests = 0;
+          pendingAppointments = 0;
+        }
+        // Revenue for selected month (match financials page logic)
+        let monthlyRevenue = 0;
+        try {
+          const { data: invoices, error: invError } = await supabase
+            .from('hvac_invoices')
+            .select('*')
+            .eq('business_id', businessId);
+          if (invError || !invoices) {
+            monthlyRevenue = 0;
+          } else {
+            const paidInvoices = invoices.filter((inv: any) => (inv.status || '').toLowerCase() === 'paid');
+            const month = revenueMonth.getMonth();
+            const year = revenueMonth.getFullYear();
+            monthlyRevenue = paidInvoices.filter((inv: any) => {
+              const d = new Date(inv.issue_date);
+              return d.getMonth() === month && d.getFullYear() === year;
+            }).reduce((sum: number, inv: any) => sum + (parseFloat(inv.total_amount) || 0), 0);
+          }
+        } catch {
+          monthlyRevenue = 0;
+        }
+        // Customer Count
+        let customerCount = 0;
+        try {
+          const { count } = await supabase
+            .from('hvac_clients')
+            .select('id', { count: 'exact' })
+            .eq('business_id', businessId);
+          customerCount = count || 0;
+        } catch {
+          customerCount = 0;
+        }
+        setStats({
+          activeRequests,
+          pendingAppointments,
+          monthlyRevenue,
+          customerCount,
+        });
+      } catch (e) {
+        setStats({ activeRequests: 0, pendingAppointments: 0, monthlyRevenue: 0, customerCount: 0 });
+      }
+    }
+    if (business && business.id) {
+      fetchStats(business.id);
+    }
+  }, [business, revenueMonth]);
 
   return (
     <>
@@ -132,7 +203,7 @@ export default function DashboardPage() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900">
-                      {mockStats.activeRequests}
+                      {stats.activeRequests}
                     </div>
                   </dd>
                 </dl>
@@ -154,7 +225,7 @@ export default function DashboardPage() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900">
-                      {mockStats.pendingAppointments}
+                      {stats.pendingAppointments}
                     </div>
                   </dd>
                 </dl>
@@ -172,11 +243,31 @@ export default function DashboardPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Monthly Revenue
+                    <div className="flex items-center justify-center gap-2 w-full">
+                      <button
+                        type="button"
+                        aria-label="Previous Month"
+                        className="p-1 rounded hover:bg-gray-100 flex-shrink-0"
+                        onClick={() => setRevenueMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <span className="text-center w-full truncate" style={{ minWidth: 0 }}>
+                        {revenueMonth.toLocaleString('default', { month: 'long', year: 'numeric' })} Revenue
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Next Month"
+                        className="p-1 rounded hover:bg-gray-100 flex-shrink-0"
+                        onClick={() => setRevenueMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900">
-                      ${mockStats.monthlyRevenue.toLocaleString()}
+                      ${stats.monthlyRevenue.toLocaleString()}
                     </div>
                   </dd>
                 </dl>
@@ -198,7 +289,7 @@ export default function DashboardPage() {
                   </dt>
                   <dd className="flex items-baseline">
                     <div className="text-2xl font-semibold text-gray-900">
-                      {mockStats.customerCount}
+                      {stats.customerCount}
                     </div>
                   </dd>
                 </dl>

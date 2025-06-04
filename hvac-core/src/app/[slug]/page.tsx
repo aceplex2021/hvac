@@ -156,7 +156,9 @@ export default function BusinessLandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Image src={business.logo} alt={`${business.name} logo`} className="h-8 w-auto" width={32} height={32} />
+              {business.logo && business.logo.trim() !== '' ? (
+                <Image src={business.logo} alt={`${business.name} logo`} className="h-8 w-auto" width={32} height={32} />
+              ) : null}
             </div>
             <div className="flex items-center space-x-4">
               <button

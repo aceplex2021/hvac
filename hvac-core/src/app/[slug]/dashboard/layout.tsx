@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { 
@@ -17,6 +17,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { createBrowserClient } from '@supabase/ssr';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -43,6 +44,28 @@ export default function DashboardLayout({
   const router = useRouter();
   const params = useParams();
   const slug = params.slug;
+  const [businessName, setBusinessName] = useState<string>('');
+
+  useEffect(() => {
+    async function fetchBusinessName() {
+      if (!slug) return;
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data, error } = await supabase
+        .from('hvac_businesses')
+        .select('name')
+        .eq('slug', slug)
+        .single();
+      if (data && data.name) {
+        setBusinessName(data.name);
+      } else {
+        setBusinessName('');
+      }
+    }
+    fetchBusinessName();
+  }, [slug]);
 
   const handleLogout = () => {
     router.push('/');
@@ -54,7 +77,7 @@ export default function DashboardLayout({
         {/* Sidebar for desktop, overlay for mobile */}
         {/* Hamburger button for mobile */}
         <div className="md:hidden fixed top-0 left-0 z-40 w-full flex items-center bg-white shadow-sm h-16 px-4">
-          <h1 className="text-xl font-bold text-gray-900 flex-1">HVAC.app</h1>
+          <h1 className="text-xl font-bold text-gray-900 flex-1">{businessName || '...'}</h1>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-gray-700 focus:outline-none">
             <Menu className="h-6 w-6" />
           </button>
@@ -64,7 +87,7 @@ export default function DashboardLayout({
           <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex">
             <div className="w-64 bg-white shadow-lg h-full flex flex-col">
               <div className="flex items-center justify-between px-4 py-4 border-b">
-                <h1 className="text-xl font-bold text-gray-900">HVAC.app</h1>
+                <h1 className="text-xl font-bold text-gray-900">{businessName || '...'}</h1>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-700 focus:outline-none">
                   <X className="h-6 w-6" />
                 </button>
@@ -148,7 +171,7 @@ export default function DashboardLayout({
           <div className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-sm transition-all duration-300 min-h-screen flex flex-col`}>
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex-shrink-0 flex items-center px-4 mb-5">
-                <h1 className="text-xl font-bold text-gray-900">HVAC.app</h1>
+                <h1 className="text-xl font-bold text-gray-900">{businessName || '...'}</h1>
               </div>
               <nav className="flex-1 px-2 space-y-1">
                 {NAV_ITEMS.map((item) => (
